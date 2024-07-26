@@ -1,0 +1,55 @@
+# Ignore build directories
+build-*
+
+# Ignore Qt-specific files and directories
+*.pro.user
+*.pro.user.*
+*.qmlc
+*.jsc
+*.o
+*.obj
+*.moc
+moc_*.cpp
+ui_*.h
+qrc_*.cpp
+
+# Ignore general build files
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+*.out
+*.app
+
+# Ignore editor and IDE specific files
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+*.vcxproj
+*.sln
+*.suo
+*.user
+*.ncb
+*.opensdf
+*.sdf
+*.cache
+*.bak
+*.log
+*.tmp
+*.swp
+*.swo
+
+# Ignore macOS specific files
+.DS_Store
+
+# Ignore CMake specific files
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+Testing/
+Makefile
+cmake_install.cmake
+install_manifest.txt
