@@ -206,7 +206,7 @@ ThemeColors {
                             hoverEnabled: true
                             onEntered: parent.font.underline = true
                             onExited: parent.font.underline = false
-                            onClicked: stackView.push("MainView.qml")
+                            onClicked: stackView.push("../MainView.qml")
                         }
                     }
                 }
