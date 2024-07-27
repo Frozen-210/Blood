@@ -1,0 +1,1565 @@
+==================================================
+File 1: AppointmentManager.cpp
+==================================================
+
+#include "AppointmentManager.h"
+#include <QSqlQuery>
+#include <QSqlError>
+#include <QDateTime>
+
+Q_LOGGING_CATEGORY(appointmentManager, "database.appointment")
+
+AppointmentManager::AppointmentManager(QSqlDatabase& db, QObject *parent)
+    : QObject(parent), m_db(db)
+{
+}
+
+bool AppointmentManager::scheduleAppointment(const QString &userEmail, const QString &hospitalEmail, const QDateTime &appointmentDate)
+{
+    QSqlQuery query(m_db);
+    query.prepare("INSERT INTO appointments (user_id, hospital_id, appointment_date) "
+                  "SELECT u.id, h.id, :appointmentDate "
+                  "FROM users u, hospitals h "
+                  "WHERE u.email = :userEmail AND h.email = :hospitalEmail");
+    query.bindValue(":userEmail", userEmail);
+    query.bindValue(":hospitalEmail", hospitalEmail);
+    query.bindValue(":appointmentDate", appointmentDate);
+
+    if (query.exec()) {
+        qCInfo(appointmentManager) << "Appointment scheduled successfully";
+        return true;
+    } else {
+        qCCritical(appointmentManager) << "Error scheduling appointment:" << query.lastError().text();
+        return false;
+    }
+}
+
+QVariantList AppointmentManager::getUserAppointments(const QString &userEmail)
+{
+    QVariantList appointments;
+    QSqlQuery query(m_db);
+    query.prepare("SELECT a.id, a.appointment_date, h.name as hospital_name "
+                  "FROM appointments a "
+                  "JOIN hospitals h ON a.hospital_id = h.id "
+                  "JOIN users u ON a.user_id = u.id "
+                  "WHERE u.email = :userEmail "
+                  "ORDER BY a.appointment_date");
+    query.bindValue(":userEmail", userEmail);
+
+    if (query.exec()) {
+        while (query.next()) {
+            QVariantMap appointment;
+            appointment["id"] = query.value("id").toInt();
+            appointment["date"] = query.value("appointment_date").toDateTime();
+            appointment["hospitalName"] = query.value("hospital_name").toString();
+            appointments.append(appointment);
+        }
+    } else {
+        qCCritical(appointmentManager) << "Error fetching user appointments:" << query.lastError().text();
+    }
+
+    return appointments;
+}
+
+QVariantList AppointmentManager::getHospitalAppointments(const QString &hospitalEmail)
+{
+    QVariantList appointments;
+    QSqlQuery query(m_db);
+    query.prepare("SELECT a.id, a.appointment_date, u.name as user_name, u.blood_group "
+                  "FROM appointments a "
+                  "JOIN users u ON a.user_id = u.id "
+                  "JOIN hospitals h ON a.hospital_id = h.id "
+                  "WHERE h.email = :hospitalEmail "
+                  "ORDER BY a.appointment_date");
+    query.bindValue(":hospitalEmail", hospitalEmail);
+
+    if (query.exec()) {
+        while (query.next()) {
+            QVariantMap appointment;
+            appointment["id"] = query.value("id").toInt();
+            appointment["date"] = query.value("appointment_date").toDateTime();
+            appointment["userName"] = query.value("user_name").toString();
+            appointment["bloodGroup"] = query.value("blood_group").toString();
+            appointments.append(appointment);
+        }
+    } else {
+        qCCritical(appointmentManager) << "Error fetching hospital appointments:" << query.lastError().text();
+    }
+
+    return appointments;
+}
+
+bool AppointmentManager::cancelAppointment(int appointmentId)
+{
+    QSqlQuery query(m_db);
+    query.prepare("DELETE FROM appointments WHERE id = :appointmentId");
+    query.bindValue(":appointmentId", appointmentId);
+
+    if (query.exec()) {
+        qCInfo(appointmentManager) << "Appointment cancelled successfully";
+        return true;
+    } else {
+        qCCritical(appointmentManager) << "Error cancelling appointment:" << query.lastError().text();
+        return false;
+    }
+}
+
+QVariantList AppointmentManager::getAvailableTimeSlots(const QString &hospitalEmail, const QDate &date)
+{
+    QVariantList availableSlots;
+    QSqlQuery query(m_db);
+    query.prepare("SELECT DISTINCT TIME(appointment_date) as slot_time "
+                  "FROM appointments a "
+                  "JOIN hospitals h ON a.hospital_id = h.id "
+                  "WHERE h.email = :hospitalEmail AND DATE(appointment_date) = :date "
+                  "ORDER BY slot_time");
+    query.bindValue(":hospitalEmail", hospitalEmail);
+    query.bindValue(":date", date);
+
+    if (query.exec()) {
+        QSet<QTime> bookedSlots;
+        while (query.next()) {
+            bookedSlots.insert(query.value("slot_time").toTime());
+        }
+
+        // Generate all possible time slots (e.g., every 30 minutes from 9:00 to 17:00)
+        QTime startTime(9, 0);
+        QTime endTime(17, 0);
+        while (startTime <= endTime) {
+            if (!bookedSlots.contains(startTime)) {
+                availableSlots.append(startTime.toString("hh:mm"));
+            }
+            startTime = startTime.addSecs(30 * 60);
+        }
+    } else {
+        qCCritical(appointmentManager) << "Error fetching available time slots:" << query.lastError().text();
+    }
+
+    return availableSlots;
+}
+
+void AppointmentManager::removeUserAppointments(const QString& userEmail)
+{
+    QSqlQuery query(m_db);
+    query.prepare("DELETE FROM appointments WHERE user_id = (SELECT id FROM users WHERE email = :email)");
+    query.bindValue(":email", userEmail);
+
+    if (!query.exec()) {
+        qCritical() << "Failed to remove user appointments:" << query.lastError().text();
+    }
+}
+
+void AppointmentManager::removeHospitalAppointments(const QString& hospitalEmail)
+{
+    QSqlQuery query(m_db);
+    query.prepare("DELETE FROM appointments WHERE hospital_id = (SELECT id FROM hospitals WHERE email = :email)");
+    query.bindValue(":email", hospitalEmail);
+
+    if (!query.exec()) {
+        qCritical() << "Failed to remove hospital appointments:" << query.lastError().text();
+    }
+}
+
+
+==================================================
+File 2: AppointmentManager.h
+==================================================
+
+#pragma once
+
+#include <QObject>
+#include <QSqlDatabase>
+#include <QVariantMap>
+#include <QLoggingCategory>
+
+Q_DECLARE_LOGGING_CATEGORY(appointmentManager)
+
+class AppointmentManager : public QObject
+{
+    Q_OBJECT
+
+public:
+    explicit AppointmentManager(QSqlDatabase& db, QObject *parent = nullptr);
+
+    Q_INVOKABLE bool scheduleAppointment(const QString &userEmail, const QString &hospitalEmail, const QDateTime &appointmentDate);
+    Q_INVOKABLE QVariantList getUserAppointments(const QString &userEmail);
+    Q_INVOKABLE QVariantList getHospitalAppointments(const QString &hospitalEmail);
+    Q_INVOKABLE bool cancelAppointment(int appointmentId);
+    Q_INVOKABLE QVariantList getAvailableTimeSlots(const QString &hospitalEmail, const QDate &date);
+
+public slots:
+    void removeUserAppointments(const QString& userEmail);
+    void removeHospitalAppointments(const QString& hospitalEmail);
+
+private:
+    QSqlDatabase& m_db;
+};
+
+
+==================================================
+File 3: DatabaseConfig.h
+==================================================
+
+#ifndef DATABASECONFIG_H
+#define DATABASECONFIG_H
+
+#include <QString>
+#include <QSettings>
+
+class DatabaseConfig
+{
+public:
+    static QString getDatabaseName() {
+        QSettings settings("YourCompany", "BloodDonationApp");
+        return settings.value("Database/Name", "data.db").toString();
+    }
+
+    static void setDatabaseName(const QString& name) {
+        QSettings settings("YourCompany", "BloodDonationApp");
+        settings.setValue("Database/Name", name);
+    }
+
+    // Add more configuration methods as needed
+};
+
+#endif // DATABASECONFIG_H
+
+
+==================================================
+File 4: DatabaseError.h
+==================================================
+
+// DatabaseError.h
+#ifndef DATABASEERROR_H
+#define DATABASEERROR_H
+
+#include <QString>
+
+class DatabaseError : public std::exception
+{
+public:
+    enum class ErrorType {
+        ConnectionError,
+        QueryError,
+        DataError,
+        UnknownError
+    };
+
+    DatabaseError(ErrorType type, const QString& message)
+        : m_type(type), m_message(message) {}
+
+    ErrorType type() const { return m_type; }
+    QString message() const { return m_message; }
+
+    const char* what() const noexcept override {
+        return m_message.toUtf8().constData();
+    }
+
+private:
+    ErrorType m_type;
+    QString m_message;
+};
+
+#endif // DATABASEERROR_H
+
+
+==================================================
+File 5: DatabaseManager.cpp
+==================================================
+
+#include "DatabaseManager.h"
+#include "DatabaseConfig.h"
+#include"DatabaseError.h"
+#include <QSqlQuery>
+#include <QSqlError>
+#include <QFile>
+
+Q_LOGGING_CATEGORY(dbManager, "database.manager")
+
+DatabaseManager::DatabaseManager(QObject *parent)
+    : QObject(parent)
+{
+}
+
+DatabaseManager::~DatabaseManager()
+{
+    close();
+}
+
+bool DatabaseManager::initialize()
+{
+    QString dbName = DatabaseConfig::getDatabaseName();
+    m_database = QSqlDatabase::addDatabase("QSQLITE");
+    m_database.setDatabaseName(dbName);
+
+    if (!m_database.open()) {
+        qCCritical(dbManager) << "Error opening database:" << m_database.lastError().text();
+        throw DatabaseError(DatabaseError::ErrorType::ConnectionError, "Failed to open database");
+    }
+
+    if (!createTables()) {
+        throw DatabaseError(DatabaseError::ErrorType::QueryError, "Failed to create tables");
+    }
+
+    m_userManager = std::make_unique<UserManager>(m_database);
+    m_hospitalManager = std::make_unique<HospitalManager>(m_database);
+    m_donationManager = std::make_unique<DonationManager>(m_database);
+    m_appointmentManager = std::make_unique<AppointmentManager>(m_database);
+
+    setupConnections();
+
+    qCInfo(dbManager) << "Database initialized successfully";
+    return true;
+}
+
+void DatabaseManager::close()
+{
+    if (m_database.isOpen()) {
+        m_database.close();
+        qCInfo(dbManager) << "Database closed";
+    }
+}
+
+bool DatabaseManager::createTables()
+{
+    QSqlQuery query;
+
+    // Users table
+    if (!query.exec("CREATE TABLE IF NOT EXISTS users ("
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+                    "name TEXT NOT NULL, "
+                    "email TEXT UNIQUE NOT NULL, "
+                    "password TEXT NOT NULL, "
+                    "blood_group TEXT NOT NULL, "
+                    "health_info TEXT, "
+                    "contact_number TEXT, "
+                    "address TEXT)")) {
+        qCCritical(dbManager) << "Error creating users table:" << query.lastError().text();
+        return false;
+    }
+
+    // Hospitals table
+    if (!query.exec("CREATE TABLE IF NOT EXISTS hospitals ("
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+                    "name TEXT NOT NULL, "
+                    "email TEXT UNIQUE NOT NULL, "
+                    "password TEXT NOT NULL, "
+                    "contact_number TEXT NOT NULL, "
+                    "address TEXT NOT NULL, "
+                    "city TEXT NOT NULL, "
+                    "state TEXT NOT NULL, "
+                    "country TEXT NOT NULL, "
+                    "zip TEXT NOT NULL, "
+                    "license TEXT NOT NULL)")) {
+        qCCritical(dbManager) << "Error creating hospitals table:" << query.lastError().text();
+        return false;
+    }
+
+    // Blood donations table
+    if (!query.exec("CREATE TABLE IF NOT EXISTS blood_donations ("
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+                    "user_id INTEGER NOT NULL, "
+                    "donation_date DATETIME NOT NULL, "
+                    "blood_amount REAL NOT NULL, "
+                    "FOREIGN KEY (user_id) REFERENCES users(id))")) {
+        qCCritical(dbManager) << "Error creating blood_donations table:" << query.lastError().text();
+        return false;
+    }
+
+    // Appointments table
+    if (!query.exec("CREATE TABLE IF NOT EXISTS appointments ("
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+                    "user_id INTEGER NOT NULL, "
+                    "hospital_id INTEGER NOT NULL, "
+                    "appointment_date DATETIME NOT NULL, "
+                    "FOREIGN KEY (user_id) REFERENCES users(id), "
+                    "FOREIGN KEY (hospital_id) REFERENCES hospitals(id))")) {
+        qCCritical(dbManager) << "Error creating appointments table:" << query.lastError().text();
+        return false;
+    }
+
+    qCInfo(dbManager) << "All tables created successfully";
+    return true;
+}
+
+void DatabaseManager::setupConnections()
+{
+    connect(m_userManager.get(), &UserManager::userDeleted,
+            m_appointmentManager.get(), &AppointmentManager::removeUserAppointments);
+    connect(m_hospitalManager.get(), &HospitalManager::hospitalDeleted,
+            m_appointmentManager.get(), &AppointmentManager::removeHospitalAppointments);
+}
+
+bool DatabaseManager::backupDatabase(const QString& backupPath)
+{
+    if (!m_database.isOpen()) {
+        qCCritical(dbManager) << "Database is not open";
+        return false;
+    }
+
+    if (!QFile::copy(m_database.databaseName(), backupPath)) {
+        qCCritical(dbManager) << "Failed to create database backup";
+        return false;
+    }
+
+    qCInfo(dbManager) << "Database backup created successfully at" << backupPath;
+    return true;
+}
+
+bool DatabaseManager::isDatabaseConnected() const
+{
+    return m_database.isOpen();
+}
+
+QString DatabaseManager::getLastError() const
+{
+    return m_lastError;
+}
+
+
+==================================================
+File 6: DatabaseManager.h
+==================================================
+
+#pragma once
+
+#include <QObject>
+#include <QSqlDatabase>
+#include <QVariantMap>
+#include <QLoggingCategory>
+#include "UserManager.h"
+#include "HospitalManager.h"
+#include "DonationManager.h"
+#include "AppointmentManager.h"
+
+Q_DECLARE_LOGGING_CATEGORY(dbManager)
+
+class DatabaseManager : public QObject
+{
+    Q_OBJECT
+
+public:
+    explicit DatabaseManager(QObject *parent = nullptr);
+    ~DatabaseManager();
+
+    Q_INVOKABLE bool initialize();
+    Q_INVOKABLE void close();
+
+    Q_INVOKABLE UserManager* userManager() const { return m_userManager.get(); }
+    Q_INVOKABLE HospitalManager* hospitalManager() const { return m_hospitalManager.get(); }
+    Q_INVOKABLE DonationManager* donationManager() const { return m_donationManager.get(); }
+    Q_INVOKABLE AppointmentManager* appointmentManager() const { return m_appointmentManager.get(); }
+
+    Q_INVOKABLE bool backupDatabase(const QString& backupPath);
+    Q_INVOKABLE bool isDatabaseConnected() const;
+    Q_INVOKABLE QString getLastError() const;
+
+private:
+    QSqlDatabase m_database;
+    std::unique_ptr<UserManager> m_userManager;
+    std::unique_ptr<HospitalManager> m_hospitalManager;
+    std::unique_ptr<DonationManager> m_donationManager;
+    std::unique_ptr<AppointmentManager> m_appointmentManager;
+
+    bool createTables();
+    void setupConnections();
+    QString m_lastError;
+};
+
+
+==================================================
+File 7: DonationManager.cpp
+==================================================
+
+#include "DonationManager.h"
+#include <QSqlQuery>
+#include <QSqlError>
+#include <QDateTime>
+
+Q_LOGGING_CATEGORY(donationManager, "database.donation")
+
+DonationManager::DonationManager(QSqlDatabase& db, QObject *parent)
+    : QObject(parent), m_db(db)
+{
+}
+
+bool DonationManager::recordDonation(const QString &userEmail, double bloodAmount)
+{
+    QSqlQuery query(m_db);
+    query.prepare("INSERT INTO blood_donations (user_id, donation_date, blood_amount) "
+                  "SELECT id, :donation_date, :blood_amount FROM users WHERE email = :email");
+    query.bindValue(":email", userEmail);
+    query.bindValue(":donation_date", QDateTime::currentDateTime());
+    query.bindValue(":blood_amount", bloodAmount);
+
+    if (query.exec()) {
+        qCInfo(donationManager) << "Donation record inserted successfully";
+        return true;
+    } else {
+        qCCritical(donationManager) << "Error inserting donation record:" << query.lastError().text();
+        return false;
+    }
+}
+
+QVariantList DonationManager::getUserDonationHistory(const QString &userEmail)
+{
+    QVariantList donationHistory;
+    QSqlQuery query(m_db);
+    query.prepare("SELECT donation_date, blood_amount FROM blood_donations "
+                  "JOIN users ON blood_donations.user_id = users.id "
+                  "WHERE users.email = :email ORDER BY donation_date DESC");
+    query.bindValue(":email", userEmail);
+
+    if (query.exec()) {
+        while (query.next()) {
+            QVariantMap donation;
+            donation["date"] = query.value("donation_date").toDateTime();
+            donation["amount"] = query.value("blood_amount").toDouble();
+            donationHistory.append(donation);
+        }
+    } else {
+        qCCritical(donationManager) << "Error fetching donation history:" << query.lastError().text();
+    }
+
+    return donationHistory;
+}
+
+QVariantList DonationManager::getRecentDonations(int limit)
+{
+    QVariantList recentDonations;
+    QSqlQuery query(m_db);
+    query.prepare("SELECT u.name, u.blood_group, bd.donation_date, bd.blood_amount "
+                  "FROM blood_donations bd "
+                  "JOIN users u ON bd.user_id = u.id "
+                  "ORDER BY bd.donation_date DESC LIMIT :limit");
+    query.bindValue(":limit", limit);
+
+    if (query.exec()) {
+        while (query.next()) {
+            QVariantMap donation;
+            donation["name"] = query.value("name").toString();
+            donation["bloodGroup"] = query.value("blood_group").toString();
+            donation["date"] = query.value("donation_date").toDateTime();
+            donation["amount"] = query.value("blood_amount").toDouble();
+            recentDonations.append(donation);
+        }
+    } else {
+        qCCritical(donationManager) << "Error fetching recent donations:" << query.lastError().text();
+    }
+
+    return recentDonations;
+}
+
+QVariantMap DonationManager::getBloodInventory()
+{
+    QVariantMap inventory;
+    QSqlQuery query(m_db);
+    query.prepare("SELECT u.blood_group, SUM(bd.blood_amount) as total_amount "
+                  "FROM blood_donations bd "
+                  "JOIN users u ON bd.user_id = u.id "
+                  "GROUP BY u.blood_group");
+
+    if (query.exec()) {
+        while (query.next()) {
+            QString bloodGroup = query.value("blood_group").toString();
+            double totalAmount = query.value("total_amount").toDouble();
+            inventory[bloodGroup] = totalAmount;
+        }
+    } else {
+        qCCritical(donationManager) << "Error fetching blood inventory:" << query.lastError().text();
+    }
+
+    return inventory;
+}
+
+QVariantList DonationManager::getDetailedDonationHistory(const QString &userEmail)
+{
+    QVariantList detailedHistory;
+    QSqlQuery query(m_db);
+    query.prepare("SELECT bd.donation_date, bd.blood_amount, h.name as hospital_name "
+                  "FROM blood_donations bd "
+                  "JOIN users u ON bd.user_id = u.id "
+                  "JOIN appointments a ON a.user_id = u.id AND a.appointment_date = bd.donation_date "
+                  "JOIN hospitals h ON a.hospital_id = h.id "
+                  "WHERE u.email = :email "
+                  "ORDER BY bd.donation_date DESC");
+    query.bindValue(":email", userEmail);
+
+    if (query.exec()) {
+        while (query.next()) {
+            QVariantMap donation;
+            donation["date"] = query.value("donation_date").toDateTime();
+            donation["amount"] = query.value("blood_amount").toDouble();
+            donation["hospitalName"] = query.value("hospital_name").toString();
+            detailedHistory.append(donation);
+        }
+    } else {
+        qCCritical(donationManager) << "Error fetching detailed donation history:" << query.lastError().text();
+    }
+
+    return detailedHistory;
+}
+
+
+==================================================
+File 8: DonationManager.h
+==================================================
+
+#pragma once
+
+#include <QObject>
+#include <QSqlDatabase>
+#include <QVariantMap>
+#include <QLoggingCategory>
+
+Q_DECLARE_LOGGING_CATEGORY(donationManager)
+
+class DonationManager : public QObject
+{
+    Q_OBJECT
+
+public:
+    explicit DonationManager(QSqlDatabase& db, QObject *parent = nullptr);
+
+    Q_INVOKABLE bool recordDonation(const QString &userEmail, double bloodAmount);
+    Q_INVOKABLE QVariantList getUserDonationHistory(const QString &userEmail);
+    Q_INVOKABLE QVariantList getRecentDonations(int limit);
+    Q_INVOKABLE QVariantMap getBloodInventory();
+    Q_INVOKABLE QVariantList getDetailedDonationHistory(const QString &userEmail);
+
+private:
+    QSqlDatabase& m_db;
+};
+
+
+==================================================
+File 9: HospitalManager.cpp
+==================================================
+
+#include "HospitalManager.h"
+#include <QSqlQuery>
+#include <QSqlError>
+#include <QCryptographicHash>
+
+Q_LOGGING_CATEGORY(hospitalManager, "database.hospital")
+
+HospitalManager::HospitalManager(QSqlDatabase& db, QObject *parent)
+    : QObject(parent), m_db(db)
+{
+}
+
+bool HospitalManager::insertHospital(const QString &name, const QString &email, const QString &password,
+                                     const QString &contactNumber, const QString &address, const QString &city,
+                                     const QString &state, const QString &country, const QString &zip,
+                                     const QString &license)
+{
+    QSqlQuery query(m_db);
+    query.prepare("INSERT INTO hospitals (name, email, password, contact_number, address, city, state, country, zip, license) "
+                  "VALUES (:name, :email, :password, :contact_number, :address, :city, :state, :country, :zip, :license)");
+
+    query.bindValue(":name", name);
+    query.bindValue(":email", email);
+    query.bindValue(":password", hashPassword(password));
+    query.bindValue(":contact_number", contactNumber);
+    query.bindValue(":address", address);
+    query.bindValue(":city", city);
+    query.bindValue(":state", state);
+    query.bindValue(":country", country);
+    query.bindValue(":zip", zip);
+    query.bindValue(":license", license);
+
+    if (query.exec()) {
+        qCInfo(hospitalManager) << "Hospital inserted successfully";
+        return true;
+    } else {
+        qCCritical(hospitalManager) << "Error inserting hospital:" << query.lastError().text();
+        return false;
+    }
+}
+
+bool HospitalManager::hospitalLogin(const QString &email, const QString &password)
+{
+    QSqlQuery query(m_db);
+    query.prepare("SELECT password FROM hospitals WHERE email = :email");
+    query.bindValue(":email", email);
+
+    if (query.exec() && query.next()) {
+        QString storedPassword = query.value("password").toString();
+        if (hashPassword(password) == storedPassword) {
+            qCInfo(hospitalManager) << "Hospital login successful";
+            return true;
+        } else {
+            qCInfo(hospitalManager) << "Hospital login failed: incorrect password";
+            return false;
+        }
+    } else {
+        qCInfo(hospitalManager) << "Hospital login failed: hospital not found";
+        return false;
+    }
+}
+
+QVariantMap HospitalManager::getHospitalData(const QString &email)
+{
+    QVariantMap hospitalData;
+    QSqlQuery query(m_db);
+    query.prepare("SELECT name, email, contact_number, address, city, state, country, zip, license "
+                  "FROM hospitals WHERE email = :email");
+    query.bindValue(":email", email);
+
+    if (query.exec() && query.next()) {
+        hospitalData["name"] = query.value("name").toString();
+        hospitalData["email"] = query.value("email").toString();
+        hospitalData["contactNumber"] = query.value("contact_number").toString();
+        hospitalData["address"] = query.value("address").toString();
+        hospitalData["city"] = query.value("city").toString();
+        hospitalData["state"] = query.value("state").toString();
+        hospitalData["country"] = query.value("country").toString();
+        hospitalData["zip"] = query.value("zip").toString();
+        hospitalData["license"] = query.value("license").toString();
+    } else {
+        qCCritical(hospitalManager) << "Error fetching hospital data:" << query.lastError().text();
+    }
+
+    return hospitalData;
+}
+
+bool HospitalManager::deleteHospital(const QString &email, const QString &password)
+{
+    QSqlQuery query(m_db);
+    query.prepare("SELECT password FROM hospitals WHERE email = :email");
+    query.bindValue(":email", email);
+    if (query.exec() && query.next()) {
+        QString storedPassword = query.value("password").toString();
+        if (hashPassword(password) == storedPassword) {
+            query.prepare("DELETE FROM hospitals WHERE email = :email");
+            query.bindValue(":email", email);
+            if (query.exec()) {
+                qCInfo(hospitalManager) << "Hospital deleted successfully";
+                emit hospitalDeleted(email);
+                return true;
+            } else {
+                qCCritical(hospitalManager) << "Error deleting hospital:" << query.lastError().text();
+            }
+        } else {
+            qCInfo(hospitalManager) << "Incorrect password for hospital deletion";
+        }
+    } else {
+        qCInfo(hospitalManager) << "Hospital not found for deletion";
+    }
+    return false;
+}
+
+bool HospitalManager::changeHospitalPassword(const QString &email, const QString &oldPassword, const QString &newPassword)
+{
+    QSqlQuery query(m_db);
+    query.prepare("SELECT password FROM hospitals WHERE email = :email");
+    query.bindValue(":email", email);
+
+    if (query.exec() && query.next()) {
+        QString storedPassword = query.value("password").toString();
+        if (hashPassword(oldPassword) == storedPassword) {
+            query.prepare("UPDATE hospitals SET password = :newPassword WHERE email = :email");
+            query.bindValue(":newPassword", hashPassword(newPassword));
+            query.bindValue(":email", email);
+            if (query.exec()) {
+                qCInfo(hospitalManager) << "Hospital password changed successfully";
+                return true;
+            } else {
+                qCCritical(hospitalManager) << "Error changing hospital password:" << query.lastError().text();
+            }
+        } else {
+            qCInfo(hospitalManager) << "Incorrect old password for hospital";
+        }
+    } else {
+        qCInfo(hospitalManager) << "Hospital not found for password change";
+    }
+    return false;
+}
+
+bool HospitalManager::updateHospitalProfile(const QString &email, const QVariantMap &hospitalData)
+{
+    QSqlQuery query(m_db);
+    query.prepare("UPDATE hospitals SET name = :name, contact_number = :contactNumber, "
+                  "address = :address, city = :city, state = :state, "
+                  "country = :country, zip = :zip, license = :license "
+                  "WHERE email = :email");
+    query.bindValue(":name", hospitalData["name"].toString());
+    query.bindValue(":contactNumber", hospitalData["contactNumber"].toString());
+    query.bindValue(":address", hospitalData["address"].toString());
+    query.bindValue(":city", hospitalData["city"].toString());
+    query.bindValue(":state", hospitalData["state"].toString());
+    query.bindValue(":country", hospitalData["country"].toString());
+    query.bindValue(":zip", hospitalData["zip"].toString());
+    query.bindValue(":license", hospitalData["license"].toString());
+    query.bindValue(":email", email);
+
+    if (query.exec()) {
+        qCInfo(hospitalManager) << "Hospital profile updated successfully";
+        return true;
+    } else {
+        qCCritical(hospitalManager) << "Error updating hospital profile:" << query.lastError().text();
+        return false;
+    }
+}
+
+QVariantList HospitalManager::getHospitalList()
+{
+    QVariantList hospitals;
+    QSqlQuery query(m_db);
+    query.prepare("SELECT name, email, city, state FROM hospitals");
+
+    if (query.exec()) {
+        while (query.next()) {
+            QVariantMap hospital;
+            hospital["name"] = query.value("name").toString();
+            hospital["email"] = query.value("email").toString();
+            hospital["city"] = query.value("city").toString();
+            hospital["state"] = query.value("state").toString();
+            hospitals.append(hospital);
+        }
+    } else {
+        qCCritical(hospitalManager) << "Error fetching hospital list:" << query.lastError().text();
+    }
+
+    return hospitals;
+}
+
+QVariantMap HospitalManager::getBloodInventoryLevels(const QString &hospitalEmail)
+{
+    QVariantMap inventory;
+    QSqlQuery query(m_db);
+    query.prepare("SELECT blood_group, SUM(blood_amount) as total_amount "
+                  "FROM blood_donations "
+                  "JOIN users ON blood_donations.user_id = users.id "
+                  "JOIN appointments ON appointments.user_id = users.id "
+                  "JOIN hospitals ON appointments.hospital_id = hospitals.id "
+                  "WHERE hospitals.email = :hospitalEmail "
+                  "GROUP BY blood_group");
+    query.bindValue(":hospitalEmail", hospitalEmail);
+
+    if (query.exec()) {
+        while (query.next()) {
+            QString bloodGroup = query.value("blood_group").toString();
+            double totalAmount = query.value("total_amount").toDouble();
+            inventory[bloodGroup] = totalAmount;
+        }
+    } else {
+        qCCritical(hospitalManager) << "Error fetching blood inventory levels:" << query.lastError().text();
+    }
+
+    return inventory;
+}
+
+QString HospitalManager::hashPassword(const QString &password)
+{
+    return QString(QCryptographicHash::hash(password.toUtf8(), QCryptographicHash::Sha256).toHex());
+}
+
+
+==================================================
+File 10: HospitalManager.h
+==================================================
+
+#pragma once
+
+#include <QObject>
+#include <QSqlDatabase>
+#include <QVariantMap>
+#include <QLoggingCategory>
+
+Q_DECLARE_LOGGING_CATEGORY(hospitalManager)
+
+class HospitalManager : public QObject
+{
+    Q_OBJECT
+
+public:
+    explicit HospitalManager(QSqlDatabase& db, QObject *parent = nullptr);
+
+    Q_INVOKABLE bool insertHospital(const QString &name, const QString &email, const QString &password,
+                                    const QString &contactNumber, const QString &address, const QString &city,
+                                    const QString &state, const QString &country, const QString &zip,
+                                    const QString &license);
+    Q_INVOKABLE bool hospitalLogin(const QString &email, const QString &password);
+    Q_INVOKABLE QVariantMap getHospitalData(const QString &email);
+    Q_INVOKABLE bool deleteHospital(const QString &email, const QString &password);
+    Q_INVOKABLE bool changeHospitalPassword(const QString &email, const QString &oldPassword, const QString &newPassword);
+    Q_INVOKABLE bool updateHospitalProfile(const QString &email, const QVariantMap &hospitalData);
+    Q_INVOKABLE QVariantList getHospitalList();
+    Q_INVOKABLE QVariantMap getBloodInventoryLevels(const QString &hospitalEmail);
+
+signals:
+    void hospitalDeleted(const QString& hospitalEmail);
+
+private:
+    QSqlDatabase& m_db;
+    QString hashPassword(const QString &password);
+};
+
+
+==================================================
+File 12: README.md
+==================================================
+
+## BloodBound
+Recent developments in healthcare have emphasised the need for efficient blood
+donation systems due to the logistical challenges faced by traditional methods.
+The BloodBound project aims to create a system where blood donors can book
+appointments at nearby medical centres and individuals in need of blood can
+request donations within their vicinity. This project addresses the critical issue of
+matching blood donors with recipients efficiently, reducing delays that could
+potentially cost lives. Utilising C++ with the Qt framework for the front-end and
+SQL for the database, Blood-Bound ensures a seamless and reliable user
+experience. The expected outcome is a user-friendly application that enhances the
+coordination between blood donors and medical centres, improving the efficiency
+and reliability of the blood donation process. Ultimately, Blood-Bound seeks to
+make blood donation more accessible and organised, thereby saving lives. It is
+recommended that the system be implemented across various medical centres to
+maximise its impact.
+
+# Team:
+Sarbesh KC
+Nischal Subedi
+Aarya Pathak
+Suniti Shrestha
+Avipsa Parajuli
+
+==================================================
+File 13: SemesterProject.pro
+==================================================
+
+QT       += core gui quick qml sql
+greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
+
+CONFIG += c++17
+
+# You can make your code fail to compile if it uses deprecated APIs.
+# In order to do so, uncomment the following line.
+#DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
+
+SOURCES += \
+    AppointmentManager.cpp \
+    DatabaseManager.cpp \
+    DonationManager.cpp \
+    HospitalManager.cpp \
+    UserManager.cpp \
+    main.cpp
+
+HEADERS += \
+    AppointmentManager.h \
+    DatabaseConfig.h \
+    DatabaseError.h \
+    DatabaseManager.h \
+    DonationManager.h \
+    HospitalManager.h \
+    UserManager.h
+
+FORMS +=
+
+# Default rules for deployment.
+qnx: target.path = /tmp/$${TARGET}/bin
+else: unix:!android: target.path = /opt/$${TARGET}/bin
+!isEmpty(target.path): INSTALLS += target
+
+DISTFILES += \
+    HospitalDashboardPage.qml \
+    HospitalLoginPage.qml \
+    HospitalSignupPage.qml \
+    LearnMorePage.qml \
+    LoginPage.qml \
+    MainView.qml \
+    MockData.qml \
+    UserDashboardPage.qml \
+    UserLoginPage.qml \
+    UserSignupPage.qml \
+    main.qml
+
+RESOURCES += \
+    resources.qrc
+
+
+==================================================
+File 14: SemesterProject.pro.user
+==================================================
+
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE QtCreatorProject>
+<!-- Written by QtCreator 13.0.2, 2024-07-26T19:48:14. -->
+<qtcreator>
+ <data>
+  <variable>EnvironmentId</variable>
+  <value type="QByteArray">{fe4bac49-f0e1-406a-84c8-d4e71980a0de}</value>
+ </data>
+ <data>
+  <variable>ProjectExplorer.Project.ActiveTarget</variable>
+  <value type="qlonglong">0</value>
+ </data>
+ <data>
+  <variable>ProjectExplorer.Project.EditorSettings</variable>
+  <valuemap type="QVariantMap">
+   <value type="bool" key="EditorConfiguration.AutoIndent">true</value>
+   <value type="bool" key="EditorConfiguration.AutoSpacesForTabs">false</value>
+   <value type="bool" key="EditorConfiguration.CamelCaseNavigation">true</value>
+   <valuemap type="QVariantMap" key="EditorConfiguration.CodeStyle.0">
+    <value type="QString" key="language">Cpp</value>
+    <valuemap type="QVariantMap" key="value">
+     <value type="QByteArray" key="CurrentPreferences">CppGlobal</value>
+    </valuemap>
+   </valuemap>
+   <valuemap type="QVariantMap" key="EditorConfiguration.CodeStyle.1">
+    <value type="QString" key="language">QmlJS</value>
+    <valuemap type="QVariantMap" key="value">
+     <value type="QByteArray" key="CurrentPreferences">QmlJSGlobal</value>
+    </valuemap>
+   </valuemap>
+   <value type="qlonglong" key="EditorConfiguration.CodeStyle.Count">2</value>
+   <value type="QByteArray" key="EditorConfiguration.Codec">UTF-8</value>
+   <value type="bool" key="EditorConfiguration.ConstrainTooltips">false</value>
+   <value type="int" key="EditorConfiguration.IndentSize">4</value>
+   <value type="bool" key="EditorConfiguration.KeyboardTooltips">false</value>
+   <value type="int" key="EditorConfiguration.MarginColumn">80</value>
+   <value type="bool" key="EditorConfiguration.MouseHiding">true</value>
+   <value type="bool" key="EditorConfiguration.MouseNavigation">true</value>
+   <value type="int" key="EditorConfiguration.PaddingMode">1</value>
+   <value type="int" key="EditorConfiguration.PreferAfterWhitespaceComments">0</value>
+   <value type="bool" key="EditorConfiguration.PreferSingleLineComments">false</value>
+   <value type="bool" key="EditorConfiguration.ScrollWheelZooming">true</value>
+   <value type="bool" key="EditorConfiguration.ShowMargin">false</value>
+   <value type="int" key="EditorConfiguration.SmartBackspaceBehavior">2</value>
+   <value type="bool" key="EditorConfiguration.SmartSelectionChanging">true</value>
+   <value type="bool" key="EditorConfiguration.SpacesForTabs">true</value>
+   <value type="int" key="EditorConfiguration.TabKeyBehavior">0</value>
+   <value type="int" key="EditorConfiguration.TabSize">8</value>
+   <value type="bool" key="EditorConfiguration.UseGlobal">true</value>
+   <value type="bool" key="EditorConfiguration.UseIndenter">false</value>
+   <value type="int" key="EditorConfiguration.Utf8BomBehavior">1</value>
+   <value type="bool" key="EditorConfiguration.addFinalNewLine">true</value>
+   <value type="bool" key="EditorConfiguration.cleanIndentation">true</value>
+   <value type="bool" key="EditorConfiguration.cleanWhitespace">true</value>
+   <value type="QString" key="EditorConfiguration.ignoreFileTypes">*.md, *.MD, Makefile</value>
+   <value type="bool" key="EditorConfiguration.inEntireDocument">false</value>
+   <value type="bool" key="EditorConfiguration.skipTrailingWhitespace">true</value>
+   <value type="bool" key="EditorConfiguration.tintMarginArea">true</value>
+  </valuemap>
+ </data>
+ <data>
+  <variable>ProjectExplorer.Project.PluginSettings</variable>
+  <valuemap type="QVariantMap">
+   <valuemap type="QVariantMap" key="AutoTest.ActiveFrameworks">
+    <value type="bool" key="AutoTest.Framework.Boost">true</value>
+    <value type="bool" key="AutoTest.Framework.CTest">false</value>
+    <value type="bool" key="AutoTest.Framework.Catch">true</value>
+    <value type="bool" key="AutoTest.Framework.GTest">true</value>
+    <value type="bool" key="AutoTest.Framework.QtQuickTest">true</value>
+    <value type="bool" key="AutoTest.Framework.QtTest">true</value>
+   </valuemap>
+   <valuemap type="QVariantMap" key="AutoTest.CheckStates"/>
+   <value type="int" key="AutoTest.RunAfterBuild">0</value>
+   <value type="bool" key="AutoTest.UseGlobal">true</value>
+   <valuemap type="QVariantMap" key="ClangTools">
+    <value type="bool" key="ClangTools.AnalyzeOpenFiles">true</value>
+    <value type="bool" key="ClangTools.BuildBeforeAnalysis">true</value>
+    <value type="QString" key="ClangTools.DiagnosticConfig">Builtin.DefaultTidyAndClazy</value>
+    <value type="int" key="ClangTools.ParallelJobs">8</value>
+    <value type="bool" key="ClangTools.PreferConfigFile">true</value>
+    <valuelist type="QVariantList" key="ClangTools.SelectedDirs"/>
+    <valuelist type="QVariantList" key="ClangTools.SelectedFiles"/>
+    <valuelist type="QVariantList" key="ClangTools.SuppressedDiagnostics"/>
+    <value type="bool" key="ClangTools.UseGlobalSettings">true</value>
+   </valuemap>
+  </valuemap>
+ </data>
+ <data>
+  <variable>ProjectExplorer.Project.Target.0</variable>
+  <valuemap type="QVariantMap">
+   <value type="QString" key="DeviceType">Desktop</value>
+   <value type="QString" key="ProjectExplorer.ProjectConfiguration.DefaultDisplayName">Desktop Qt 6.7.2</value>
+   <value type="QString" key="ProjectExplorer.ProjectConfiguration.DisplayName">Desktop Qt 6.7.2</value>
+   <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">qt.qt6.672.linux_gcc_64_kit</value>
+   <value type="qlonglong" key="ProjectExplorer.Target.ActiveBuildConfiguration">0</value>
+   <value type="qlonglong" key="ProjectExplorer.Target.ActiveDeployConfiguration">0</value>
+   <value type="qlonglong" key="ProjectExplorer.Target.ActiveRunConfiguration">0</value>
+   <valuemap type="QVariantMap" key="ProjectExplorer.Target.BuildConfiguration.0">
+    <value type="int" key="EnableQmlDebugging">0</value>
+    <value type="QString" key="ProjectExplorer.BuildConfiguration.BuildDirectory">/home/satvara/Dev/blood/build/Desktop_Qt_6_7_2-Debug</value>
+    <value type="QString" key="ProjectExplorer.BuildConfiguration.BuildDirectory.shadowDir">/home/satvara/Dev/blood/build/Desktop_Qt_6_7_2-Debug</value>
+    <valuemap type="QVariantMap" key="ProjectExplorer.BuildConfiguration.BuildStepList.0">
+     <valuemap type="QVariantMap" key="ProjectExplorer.BuildStepList.Step.0">
+      <value type="bool" key="ProjectExplorer.BuildStep.Enabled">true</value>
+      <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">QtProjectManager.QMakeBuildStep</value>
+      <value type="bool" key="QtProjectManager.QMakeBuildStep.QMakeForced">false</value>
+      <valuelist type="QVariantList" key="QtProjectManager.QMakeBuildStep.SelectedAbis"/>
+     </valuemap>
+     <valuemap type="QVariantMap" key="ProjectExplorer.BuildStepList.Step.1">
+      <value type="bool" key="ProjectExplorer.BuildStep.Enabled">true</value>
+      <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">Qt4ProjectManager.MakeStep</value>
+     </valuemap>
+     <value type="qlonglong" key="ProjectExplorer.BuildStepList.StepsCount">2</value>
+     <value type="QString" key="ProjectExplorer.ProjectConfiguration.DefaultDisplayName">Build</value>
+     <value type="QString" key="ProjectExplorer.ProjectConfiguration.DisplayName">Build</value>
+     <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">ProjectExplorer.BuildSteps.Build</value>
+    </valuemap>
+    <valuemap type="QVariantMap" key="ProjectExplorer.BuildConfiguration.BuildStepList.1">
+     <valuemap type="QVariantMap" key="ProjectExplorer.BuildStepList.Step.0">
+      <value type="bool" key="ProjectExplorer.BuildStep.Enabled">true</value>
+      <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">Qt4ProjectManager.MakeStep</value>
+      <value type="QString" key="Qt4ProjectManager.MakeStep.MakeArguments">clean</value>
+     </valuemap>
+     <value type="qlonglong" key="ProjectExplorer.BuildStepList.StepsCount">1</value>
+     <value type="QString" key="ProjectExplorer.ProjectConfiguration.DefaultDisplayName">Clean</value>
+     <value type="QString" key="ProjectExplorer.ProjectConfiguration.DisplayName">Clean</value>
+     <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">ProjectExplorer.BuildSteps.Clean</value>
+    </valuemap>
+    <value type="int" key="ProjectExplorer.BuildConfiguration.BuildStepListCount">2</value>
+    <value type="bool" key="ProjectExplorer.BuildConfiguration.ClearSystemEnvironment">false</value>
+    <valuelist type="QVariantList" key="ProjectExplorer.BuildConfiguration.CustomParsers"/>
+    <value type="bool" key="ProjectExplorer.BuildConfiguration.ParseStandardOutput">false</value>
+    <valuelist type="QVariantList" key="ProjectExplorer.BuildConfiguration.UserEnvironmentChanges"/>
+    <value type="QString" key="ProjectExplorer.ProjectConfiguration.DisplayName">Debug</value>
+    <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">Qt4ProjectManager.Qt4BuildConfiguration</value>
+    <value type="int" key="Qt4ProjectManager.Qt4BuildConfiguration.BuildConfiguration">2</value>
+   </valuemap>
+   <valuemap type="QVariantMap" key="ProjectExplorer.Target.BuildConfiguration.1">
+    <value type="QString" key="ProjectExplorer.BuildConfiguration.BuildDirectory">/home/satvara/Dev/blood/build/Desktop_Qt_6_7_2-Release</value>
+    <value type="QString" key="ProjectExplorer.BuildConfiguration.BuildDirectory.shadowDir">/home/satvara/Dev/blood/build/Desktop_Qt_6_7_2-Release</value>
+    <valuemap type="QVariantMap" key="ProjectExplorer.BuildConfiguration.BuildStepList.0">
+     <valuemap type="QVariantMap" key="ProjectExplorer.BuildStepList.Step.0">
+      <value type="bool" key="ProjectExplorer.BuildStep.Enabled">true</value>
+      <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">QtProjectManager.QMakeBuildStep</value>
+      <value type="bool" key="QtProjectManager.QMakeBuildStep.QMakeForced">false</value>
+      <valuelist type="QVariantList" key="QtProjectManager.QMakeBuildStep.SelectedAbis"/>
+     </valuemap>
+     <valuemap type="QVariantMap" key="ProjectExplorer.BuildStepList.Step.1">
+      <value type="bool" key="ProjectExplorer.BuildStep.Enabled">true</value>
+      <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">Qt4ProjectManager.MakeStep</value>
+     </valuemap>
+     <value type="qlonglong" key="ProjectExplorer.BuildStepList.StepsCount">2</value>
+     <value type="QString" key="ProjectExplorer.ProjectConfiguration.DefaultDisplayName">Build</value>
+     <value type="QString" key="ProjectExplorer.ProjectConfiguration.DisplayName">Build</value>
+     <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">ProjectExplorer.BuildSteps.Build</value>
+    </valuemap>
+    <valuemap type="QVariantMap" key="ProjectExplorer.BuildConfiguration.BuildStepList.1">
+     <valuemap type="QVariantMap" key="ProjectExplorer.BuildStepList.Step.0">
+      <value type="bool" key="ProjectExplorer.BuildStep.Enabled">true</value>
+      <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">Qt4ProjectManager.MakeStep</value>
+      <value type="QString" key="Qt4ProjectManager.MakeStep.MakeArguments">clean</value>
+     </valuemap>
+     <value type="qlonglong" key="ProjectExplorer.BuildStepList.StepsCount">1</value>
+     <value type="QString" key="ProjectExplorer.ProjectConfiguration.DefaultDisplayName">Clean</value>
+     <value type="QString" key="ProjectExplorer.ProjectConfiguration.DisplayName">Clean</value>
+     <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">ProjectExplorer.BuildSteps.Clean</value>
+    </valuemap>
+    <value type="int" key="ProjectExplorer.BuildConfiguration.BuildStepListCount">2</value>
+    <value type="bool" key="ProjectExplorer.BuildConfiguration.ClearSystemEnvironment">false</value>
+    <valuelist type="QVariantList" key="ProjectExplorer.BuildConfiguration.CustomParsers"/>
+    <value type="bool" key="ProjectExplorer.BuildConfiguration.ParseStandardOutput">false</value>
+    <valuelist type="QVariantList" key="ProjectExplorer.BuildConfiguration.UserEnvironmentChanges"/>
+    <value type="QString" key="ProjectExplorer.ProjectConfiguration.DisplayName">Release</value>
+    <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">Qt4ProjectManager.Qt4BuildConfiguration</value>
+    <value type="int" key="Qt4ProjectManager.Qt4BuildConfiguration.BuildConfiguration">0</value>
+    <value type="int" key="QtQuickCompiler">0</value>
+   </valuemap>
+   <valuemap type="QVariantMap" key="ProjectExplorer.Target.BuildConfiguration.2">
+    <value type="int" key="EnableQmlDebugging">0</value>
+    <value type="QString" key="ProjectExplorer.BuildConfiguration.BuildDirectory">/home/satvara/Dev/blood/build/Desktop_Qt_6_7_2-Profile</value>
+    <value type="QString" key="ProjectExplorer.BuildConfiguration.BuildDirectory.shadowDir">/home/satvara/Dev/blood/build/Desktop_Qt_6_7_2-Profile</value>
+    <valuemap type="QVariantMap" key="ProjectExplorer.BuildConfiguration.BuildStepList.0">
+     <valuemap type="QVariantMap" key="ProjectExplorer.BuildStepList.Step.0">
+      <value type="bool" key="ProjectExplorer.BuildStep.Enabled">true</value>
+      <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">QtProjectManager.QMakeBuildStep</value>
+      <value type="bool" key="QtProjectManager.QMakeBuildStep.QMakeForced">false</value>
+      <valuelist type="QVariantList" key="QtProjectManager.QMakeBuildStep.SelectedAbis"/>
+     </valuemap>
+     <valuemap type="QVariantMap" key="ProjectExplorer.BuildStepList.Step.1">
+      <value type="bool" key="ProjectExplorer.BuildStep.Enabled">true</value>
+      <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">Qt4ProjectManager.MakeStep</value>
+     </valuemap>
+     <value type="qlonglong" key="ProjectExplorer.BuildStepList.StepsCount">2</value>
+     <value type="QString" key="ProjectExplorer.ProjectConfiguration.DefaultDisplayName">Build</value>
+     <value type="QString" key="ProjectExplorer.ProjectConfiguration.DisplayName">Build</value>
+     <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">ProjectExplorer.BuildSteps.Build</value>
+    </valuemap>
+    <valuemap type="QVariantMap" key="ProjectExplorer.BuildConfiguration.BuildStepList.1">
+     <valuemap type="QVariantMap" key="ProjectExplorer.BuildStepList.Step.0">
+      <value type="bool" key="ProjectExplorer.BuildStep.Enabled">true</value>
+      <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">Qt4ProjectManager.MakeStep</value>
+      <value type="QString" key="Qt4ProjectManager.MakeStep.MakeArguments">clean</value>
+     </valuemap>
+     <value type="qlonglong" key="ProjectExplorer.BuildStepList.StepsCount">1</value>
+     <value type="QString" key="ProjectExplorer.ProjectConfiguration.DefaultDisplayName">Clean</value>
+     <value type="QString" key="ProjectExplorer.ProjectConfiguration.DisplayName">Clean</value>
+     <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">ProjectExplorer.BuildSteps.Clean</value>
+    </valuemap>
+    <value type="int" key="ProjectExplorer.BuildConfiguration.BuildStepListCount">2</value>
+    <value type="bool" key="ProjectExplorer.BuildConfiguration.ClearSystemEnvironment">false</value>
+    <valuelist type="QVariantList" key="ProjectExplorer.BuildConfiguration.CustomParsers"/>
+    <value type="bool" key="ProjectExplorer.BuildConfiguration.ParseStandardOutput">false</value>
+    <valuelist type="QVariantList" key="ProjectExplorer.BuildConfiguration.UserEnvironmentChanges"/>
+    <value type="QString" key="ProjectExplorer.ProjectConfiguration.DisplayName">Profile</value>
+    <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">Qt4ProjectManager.Qt4BuildConfiguration</value>
+    <value type="int" key="Qt4ProjectManager.Qt4BuildConfiguration.BuildConfiguration">0</value>
+    <value type="int" key="QtQuickCompiler">0</value>
+    <value type="int" key="SeparateDebugInfo">0</value>
+   </valuemap>
+   <value type="qlonglong" key="ProjectExplorer.Target.BuildConfigurationCount">3</value>
+   <valuemap type="QVariantMap" key="ProjectExplorer.Target.DeployConfiguration.0">
+    <valuemap type="QVariantMap" key="ProjectExplorer.BuildConfiguration.BuildStepList.0">
+     <value type="qlonglong" key="ProjectExplorer.BuildStepList.StepsCount">0</value>
+     <value type="QString" key="ProjectExplorer.ProjectConfiguration.DefaultDisplayName">Deploy</value>
+     <value type="QString" key="ProjectExplorer.ProjectConfiguration.DisplayName">Deploy</value>
+     <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">ProjectExplorer.BuildSteps.Deploy</value>
+    </valuemap>
+    <value type="int" key="ProjectExplorer.BuildConfiguration.BuildStepListCount">1</value>
+    <valuemap type="QVariantMap" key="ProjectExplorer.DeployConfiguration.CustomData"/>
+    <value type="bool" key="ProjectExplorer.DeployConfiguration.CustomDataEnabled">false</value>
+    <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">ProjectExplorer.DefaultDeployConfiguration</value>
+   </valuemap>
+   <value type="qlonglong" key="ProjectExplorer.Target.DeployConfigurationCount">1</value>
+   <valuemap type="QVariantMap" key="ProjectExplorer.Target.RunConfiguration.0">
+    <value type="bool" key="Analyzer.Perf.Settings.UseGlobalSettings">true</value>
+    <value type="bool" key="Analyzer.QmlProfiler.Settings.UseGlobalSettings">true</value>
+    <value type="int" key="Analyzer.Valgrind.Callgrind.CostFormat">0</value>
+    <value type="bool" key="Analyzer.Valgrind.Settings.UseGlobalSettings">true</value>
+    <valuelist type="QVariantList" key="CustomOutputParsers"/>
+    <value type="int" key="PE.EnvironmentAspect.Base">2</value>
+    <valuelist type="QVariantList" key="PE.EnvironmentAspect.Changes"/>
+    <value type="bool" key="PE.EnvironmentAspect.PrintOnRun">false</value>
+    <value type="QString" key="PerfRecordArgsId">-e cpu-cycles --call-graph dwarf,4096 -F 250</value>
+    <value type="QString" key="ProjectExplorer.ProjectConfiguration.DisplayName"></value>
+    <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">ProjectExplorer.CustomExecutableRunConfiguration</value>
+    <value type="QString" key="ProjectExplorer.RunConfiguration.BuildKey"></value>
+    <value type="bool" key="ProjectExplorer.RunConfiguration.Customized">false</value>
+    <value type="bool" key="RunConfiguration.UseCppDebuggerAuto">true</value>
+    <value type="bool" key="RunConfiguration.UseQmlDebuggerAuto">true</value>
+   </valuemap>
+   <value type="qlonglong" key="ProjectExplorer.Target.RunConfigurationCount">1</value>
+  </valuemap>
+ </data>
+ <data>
+  <variable>ProjectExplorer.Project.TargetCount</variable>
+  <value type="qlonglong">1</value>
+ </data>
+ <data>
+  <variable>ProjectExplorer.Project.Updater.FileVersion</variable>
+  <value type="int">22</value>
+ </data>
+ <data>
+  <variable>Version</variable>
+  <value type="int">22</value>
+ </data>
+</qtcreator>
+
+
+==================================================
+File 15: UserManager.cpp
+==================================================
+
+#include "UserManager.h"
+#include <QSqlQuery>
+#include <QSqlError>
+#include <QCryptographicHash>
+#include<QDateTime>
+
+Q_LOGGING_CATEGORY(userManager, "database.user")
+
+UserManager::UserManager(QSqlDatabase& db, QObject *parent)
+    : QObject(parent), m_db(db)
+{
+}
+
+bool UserManager::insertUser(const QString &name, const QString &email, const QString &password, const QString &bloodGroup, const QString &healthInfo)
+{
+    QSqlQuery query(m_db);
+    query.prepare("INSERT INTO users (name, email, password, blood_group, health_info) "
+                  "VALUES (:name, :email, :password, :blood_group, :health_info)");
+    query.bindValue(":name", name);
+    query.bindValue(":email", email);
+    query.bindValue(":password", hashPassword(password));
+    query.bindValue(":blood_group", bloodGroup);
+    query.bindValue(":health_info", healthInfo);
+
+    if (query.exec()) {
+        qCInfo(userManager) << "User inserted successfully";
+        return true;
+    } else {
+        qCCritical(userManager) << "Error inserting user:" << query.lastError().text();
+        return false;
+    }
+}
+
+bool UserManager::userLogin(const QString &email, const QString &password)
+{
+    QSqlQuery query(m_db);
+    query.prepare("SELECT password FROM users WHERE email = :email");
+    query.bindValue(":email", email);
+
+    if (query.exec() && query.next()) {
+        QString storedPassword = query.value("password").toString();
+        if (hashPassword(password) == storedPassword) {
+            qCInfo(userManager) << "User login successful";
+            return true;
+        } else {
+            qCInfo(userManager) << "User login failed: incorrect password";
+            return false;
+        }
+    } else {
+        qCInfo(userManager) << "User login failed: user not found";
+        return false;
+    }
+}
+
+QVariantMap UserManager::getUserData(const QString &email)
+{
+    QVariantMap userData;
+    QSqlQuery query(m_db);
+    query.prepare("SELECT name, email, blood_group, health_info, contact_number, address "
+                  "FROM users WHERE email = :email");
+    query.bindValue(":email", email);
+
+    if (query.exec() && query.next()) {
+        userData["name"] = query.value("name").toString();
+        userData["email"] = query.value("email").toString();
+        userData["bloodGroup"] = query.value("blood_group").toString();
+        userData["healthInfo"] = query.value("health_info").toString();
+        userData["contactNumber"] = query.value("contact_number").toString();
+        userData["address"] = query.value("address").toString();
+    } else {
+        qCCritical(userManager) << "Error fetching user data:" << query.lastError().text();
+    }
+
+    return userData;
+}
+
+bool UserManager::deleteUser(const QString &email, const QString &password)
+{
+    QSqlQuery query(m_db);
+    query.prepare("SELECT password FROM users WHERE email = :email");
+    query.bindValue(":email", email);
+
+    if (query.exec() && query.next()) {
+        QString storedPassword = query.value("password").toString();
+        if (hashPassword(password) == storedPassword) {
+            query.prepare("DELETE FROM users WHERE email = :email");
+            query.bindValue(":email", email);
+            if (query.exec()) {
+                qCInfo(userManager) << "User deleted successfully";
+                emit userDeleted(email);
+                return true;
+            } else {
+                qCCritical(userManager) << "Error deleting user:" << query.lastError().text();
+            }
+        } else {
+            qCInfo(userManager) << "Incorrect password for user deletion";
+        }
+    } else {
+        qCInfo(userManager) << "User not found for deletion";
+    }
+    return false;
+}
+
+bool UserManager::changeUserPassword(const QString &email, const QString &oldPassword, const QString &newPassword)
+{
+    QSqlQuery query(m_db);
+    query.prepare("SELECT password FROM users WHERE email = :email");
+    query.bindValue(":email", email);
+
+    if (query.exec() && query.next()) {
+        QString storedPassword = query.value("password").toString();
+        if (hashPassword(oldPassword) == storedPassword) {
+            query.prepare("UPDATE users SET password = :newPassword WHERE email = :email");
+            query.bindValue(":newPassword", hashPassword(newPassword));
+            query.bindValue(":email", email);
+            if (query.exec()) {
+                qCInfo(userManager) << "User password changed successfully";
+                return true;
+            } else {
+                qCCritical(userManager) << "Error changing user password:" << query.lastError().text();
+            }
+        } else {
+            qCInfo(userManager) << "Incorrect old password for user";
+        }
+    } else {
+        qCInfo(userManager) << "User not found for password change";
+    }
+    return false;
+}
+
+bool UserManager::updateUserProfile(const QString &email, const QVariantMap &userData)
+{
+    QSqlQuery query(m_db);
+    query.prepare("UPDATE users SET name = :name, blood_group = :bloodGroup, "
+                  "health_info = :healthInfo, contact_number = :contactNumber, "
+                  "address = :address WHERE email = :email");
+    query.bindValue(":name", userData["name"].toString());
+    query.bindValue(":bloodGroup", userData["bloodGroup"].toString());
+    query.bindValue(":healthInfo", userData["healthInfo"].toString());
+    query.bindValue(":contactNumber", userData["contactNumber"].toString());
+    query.bindValue(":address", userData["address"].toString());
+    query.bindValue(":email", email);
+
+    if (query.exec()) {
+        qCInfo(userManager) << "User profile updated successfully";
+        return true;
+    } else {
+        qCCritical(userManager) << "Error updating user profile:" << query.lastError().text();
+        return false;
+    }
+}
+
+QVariantList UserManager::searchDonors(const QString &bloodGroup, const QString &location)
+{
+    QVariantList donors;
+    QSqlQuery query(m_db);
+    query.prepare("SELECT name, email, blood_group, address FROM users "
+                  "WHERE blood_group = :bloodGroup AND address LIKE :location");
+    query.bindValue(":bloodGroup", bloodGroup);
+    query.bindValue(":location", "%" + location + "%");
+
+    if (query.exec()) {
+        while (query.next()) {
+            QVariantMap donor;
+            donor["name"] = query.value("name").toString();
+            donor["email"] = query.value("email").toString();
+            donor["bloodGroup"] = query.value("blood_group").toString();
+            donor["address"] = query.value("address").toString();
+            donors.append(donor);
+        }
+    } else {
+        qCCritical(userManager) << "Error searching donors:" << query.lastError().text();
+    }
+
+    return donors;
+}
+
+int UserManager::getUserTotalDonations(const QString &email)
+{
+    QSqlQuery query(m_db);
+    query.prepare("SELECT COUNT(*) FROM blood_donations "
+                  "JOIN users ON blood_donations.user_id = users.id "
+                  "WHERE users.email = :email");
+    query.bindValue(":email", email);
+
+    if (query.exec() && query.next()) {
+        return query.value(0).toInt();
+    } else {
+        qCCritical(userManager) << "Error fetching user total donations:" << query.lastError().text();
+        return 0;
+    }
+}
+
+QString UserManager::getUserLastDonation(const QString &email)
+{
+    QSqlQuery query(m_db);
+    query.prepare("SELECT MAX(donation_date) FROM blood_donations "
+                  "JOIN users ON blood_donations.user_id = users.id "
+                  "WHERE users.email = :email");
+    query.bindValue(":email", email);
+
+    if (query.exec() && query.next()) {
+        return query.value(0).toDateTime().toString("yyyy-MM-dd");
+    } else {
+        qCCritical(userManager) << "Error fetching user last donation:" << query.lastError().text();
+        return "N/A";
+    }
+}
+
+QString UserManager::hashPassword(const QString &password)
+{
+    return QString(QCryptographicHash::hash(password.toUtf8(), QCryptographicHash::Sha256).toHex());
+}
+
+
+==================================================
+File 16: UserManager.h
+==================================================
+
+#pragma once
+
+#include <QObject>
+#include <QSqlDatabase>
+#include <QVariantMap>
+#include <QLoggingCategory>
+
+Q_DECLARE_LOGGING_CATEGORY(userManager)
+
+class UserManager : public QObject
+{
+    Q_OBJECT
+
+public:
+    explicit UserManager(QSqlDatabase& db, QObject *parent = nullptr);
+
+    Q_INVOKABLE bool insertUser(const QString &name, const QString &email, const QString &password, const QString &bloodGroup, const QString &healthInfo);
+    Q_INVOKABLE bool userLogin(const QString &email, const QString &password);
+    Q_INVOKABLE QVariantMap getUserData(const QString &email);
+    Q_INVOKABLE bool deleteUser(const QString &email, const QString &password);
+    Q_INVOKABLE bool changeUserPassword(const QString &email, const QString &oldPassword, const QString &newPassword);
+    Q_INVOKABLE bool updateUserProfile(const QString &email, const QVariantMap &userData);
+    Q_INVOKABLE QVariantList searchDonors(const QString &bloodGroup, const QString &location);
+    Q_INVOKABLE int getUserTotalDonations(const QString &email);
+    Q_INVOKABLE QString getUserLastDonation(const QString &email);
+
+signals:
+    void userDeleted(const QString& userEmail);
+
+private:
+    QSqlDatabase& m_db;
+    QString hashPassword(const QString &password);
+};
+
+
+==================================================
+File 18: compile_commands.json
+==================================================
+
+[{"arguments":["clang","-Wno-documentation-unknown-command","-Wno-unknown-warning-option","-Wno-unknown-pragmas","-nostdinc","-nostdinc++","-pipe","-g","-std=gnu++1z","-Wall","-Wextra","-fPIC","-D_REENTRANT","-fsyntax-only","-m64","--target=x86_64-redhat-linux","-DQT_QML_DEBUG","-DQT_QUICK_LIB","-DQT_OPENGL_LIB","-DQT_WIDGETS_LIB","-DQT_GUI_LIB","-DQT_QMLMODELS_LIB","-DQT_QML_LIB","-DQT_QMLINTEGRATION_LIB","-DQT_NETWORK_LIB","-DQT_SQL_LIB","-DQT_CORE_LIB","-DQ_CREATOR_RUN","-DQT_ANNOTATE_FUNCTION(x)=__attribute__((annotate(#x)))","-I/home/satvara/Qt/Tools/QtCreator/share/qtcreator/cplusplus/wrappedQtHeaders","-I/home/satvara/Qt/Tools/QtCreator/share/qtcreator/cplusplus/wrappedQtHeaders/QtCore","-I/home/satvara/Dev/blood","-I/home/satvara/Qt/6.7.2/gcc_64/include","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtQuick","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtOpenGL","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtWidgets","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtGui","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtQmlModels","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtQml","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtQmlIntegration","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtNetwork","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtSql","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtCore","-I/home/satvara/Dev/blood/build/Desktop_Qt_6_7_2-Debug","-I/home/satvara/Qt/6.7.2/gcc_64/mkspecs/linux-g++","-isystem","/usr/include/c++/14","-isystem","/usr/include/c++/14/x86_64-redhat-linux","-isystem","/usr/include/c++/14/backward","-isystem","/usr/local/include","-isystem","/home/satvara/Qt/Tools/QtCreator/libexec/qtcreator/clang/lib/clang/17/include","-isystem","/usr/include","-fmessage-length=0","-fdiagnostics-show-note-include-stack","-fretain-comments-from-system-headers","-fmacro-backtrace-limit=0","-ferror-limit=1000","-x","c++","/home/satvara/Dev/blood/AppointmentManager.cpp"],"directory":"/home/satvara/Dev/blood/build/Desktop_Qt_6_7_2-Debug/.qtc_clangd","file":"/home/satvara/Dev/blood/AppointmentManager.cpp"},{"arguments":["clang","-Wno-documentation-unknown-command","-Wno-unknown-warning-option","-Wno-unknown-pragmas","-nostdinc","-nostdinc++","-pipe","-g","-std=gnu++1z","-Wall","-Wextra","-fPIC","-D_REENTRANT","-fsyntax-only","-m64","--target=x86_64-redhat-linux","-DQT_QML_DEBUG","-DQT_QUICK_LIB","-DQT_OPENGL_LIB","-DQT_WIDGETS_LIB","-DQT_GUI_LIB","-DQT_QMLMODELS_LIB","-DQT_QML_LIB","-DQT_QMLINTEGRATION_LIB","-DQT_NETWORK_LIB","-DQT_SQL_LIB","-DQT_CORE_LIB","-DQ_CREATOR_RUN","-DQT_ANNOTATE_FUNCTION(x)=__attribute__((annotate(#x)))","-I/home/satvara/Qt/Tools/QtCreator/share/qtcreator/cplusplus/wrappedQtHeaders","-I/home/satvara/Qt/Tools/QtCreator/share/qtcreator/cplusplus/wrappedQtHeaders/QtCore","-I/home/satvara/Dev/blood","-I/home/satvara/Qt/6.7.2/gcc_64/include","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtQuick","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtOpenGL","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtWidgets","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtGui","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtQmlModels","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtQml","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtQmlIntegration","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtNetwork","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtSql","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtCore","-I/home/satvara/Dev/blood/build/Desktop_Qt_6_7_2-Debug","-I/home/satvara/Qt/6.7.2/gcc_64/mkspecs/linux-g++","-isystem","/usr/include/c++/14","-isystem","/usr/include/c++/14/x86_64-redhat-linux","-isystem","/usr/include/c++/14/backward","-isystem","/usr/local/include","-isystem","/home/satvara/Qt/Tools/QtCreator/libexec/qtcreator/clang/lib/clang/17/include","-isystem","/usr/include","-fmessage-length=0","-fdiagnostics-show-note-include-stack","-fretain-comments-from-system-headers","-fmacro-backtrace-limit=0","-ferror-limit=1000","-x","c++","/home/satvara/Dev/blood/DatabaseManager.cpp"],"directory":"/home/satvara/Dev/blood/build/Desktop_Qt_6_7_2-Debug/.qtc_clangd","file":"/home/satvara/Dev/blood/DatabaseManager.cpp"},{"arguments":["clang","-Wno-documentation-unknown-command","-Wno-unknown-warning-option","-Wno-unknown-pragmas","-nostdinc","-nostdinc++","-pipe","-g","-std=gnu++1z","-Wall","-Wextra","-fPIC","-D_REENTRANT","-fsyntax-only","-m64","--target=x86_64-redhat-linux","-DQT_QML_DEBUG","-DQT_QUICK_LIB","-DQT_OPENGL_LIB","-DQT_WIDGETS_LIB","-DQT_GUI_LIB","-DQT_QMLMODELS_LIB","-DQT_QML_LIB","-DQT_QMLINTEGRATION_LIB","-DQT_NETWORK_LIB","-DQT_SQL_LIB","-DQT_CORE_LIB","-DQ_CREATOR_RUN","-DQT_ANNOTATE_FUNCTION(x)=__attribute__((annotate(#x)))","-I/home/satvara/Qt/Tools/QtCreator/share/qtcreator/cplusplus/wrappedQtHeaders","-I/home/satvara/Qt/Tools/QtCreator/share/qtcreator/cplusplus/wrappedQtHeaders/QtCore","-I/home/satvara/Dev/blood","-I/home/satvara/Qt/6.7.2/gcc_64/include","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtQuick","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtOpenGL","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtWidgets","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtGui","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtQmlModels","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtQml","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtQmlIntegration","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtNetwork","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtSql","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtCore","-I/home/satvara/Dev/blood/build/Desktop_Qt_6_7_2-Debug","-I/home/satvara/Qt/6.7.2/gcc_64/mkspecs/linux-g++","-isystem","/usr/include/c++/14","-isystem","/usr/include/c++/14/x86_64-redhat-linux","-isystem","/usr/include/c++/14/backward","-isystem","/usr/local/include","-isystem","/home/satvara/Qt/Tools/QtCreator/libexec/qtcreator/clang/lib/clang/17/include","-isystem","/usr/include","-fmessage-length=0","-fdiagnostics-show-note-include-stack","-fretain-comments-from-system-headers","-fmacro-backtrace-limit=0","-ferror-limit=1000","-x","c++","/home/satvara/Dev/blood/DonationManager.cpp"],"directory":"/home/satvara/Dev/blood/build/Desktop_Qt_6_7_2-Debug/.qtc_clangd","file":"/home/satvara/Dev/blood/DonationManager.cpp"},{"arguments":["clang","-Wno-documentation-unknown-command","-Wno-unknown-warning-option","-Wno-unknown-pragmas","-nostdinc","-nostdinc++","-pipe","-g","-std=gnu++1z","-Wall","-Wextra","-fPIC","-D_REENTRANT","-fsyntax-only","-m64","--target=x86_64-redhat-linux","-DQT_QML_DEBUG","-DQT_QUICK_LIB","-DQT_OPENGL_LIB","-DQT_WIDGETS_LIB","-DQT_GUI_LIB","-DQT_QMLMODELS_LIB","-DQT_QML_LIB","-DQT_QMLINTEGRATION_LIB","-DQT_NETWORK_LIB","-DQT_SQL_LIB","-DQT_CORE_LIB","-DQ_CREATOR_RUN","-DQT_ANNOTATE_FUNCTION(x)=__attribute__((annotate(#x)))","-I/home/satvara/Qt/Tools/QtCreator/share/qtcreator/cplusplus/wrappedQtHeaders","-I/home/satvara/Qt/Tools/QtCreator/share/qtcreator/cplusplus/wrappedQtHeaders/QtCore","-I/home/satvara/Dev/blood","-I/home/satvara/Qt/6.7.2/gcc_64/include","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtQuick","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtOpenGL","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtWidgets","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtGui","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtQmlModels","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtQml","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtQmlIntegration","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtNetwork","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtSql","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtCore","-I/home/satvara/Dev/blood/build/Desktop_Qt_6_7_2-Debug","-I/home/satvara/Qt/6.7.2/gcc_64/mkspecs/linux-g++","-isystem","/usr/include/c++/14","-isystem","/usr/include/c++/14/x86_64-redhat-linux","-isystem","/usr/include/c++/14/backward","-isystem","/usr/local/include","-isystem","/home/satvara/Qt/Tools/QtCreator/libexec/qtcreator/clang/lib/clang/17/include","-isystem","/usr/include","-fmessage-length=0","-fdiagnostics-show-note-include-stack","-fretain-comments-from-system-headers","-fmacro-backtrace-limit=0","-ferror-limit=1000","-x","c++","/home/satvara/Dev/blood/HospitalManager.cpp"],"directory":"/home/satvara/Dev/blood/build/Desktop_Qt_6_7_2-Debug/.qtc_clangd","file":"/home/satvara/Dev/blood/HospitalManager.cpp"},{"arguments":["clang","-Wno-documentation-unknown-command","-Wno-unknown-warning-option","-Wno-unknown-pragmas","-nostdinc","-nostdinc++","-pipe","-g","-std=gnu++1z","-Wall","-Wextra","-fPIC","-D_REENTRANT","-fsyntax-only","-m64","--target=x86_64-redhat-linux","-DQT_QML_DEBUG","-DQT_QUICK_LIB","-DQT_OPENGL_LIB","-DQT_WIDGETS_LIB","-DQT_GUI_LIB","-DQT_QMLMODELS_LIB","-DQT_QML_LIB","-DQT_QMLINTEGRATION_LIB","-DQT_NETWORK_LIB","-DQT_SQL_LIB","-DQT_CORE_LIB","-DQ_CREATOR_RUN","-DQT_ANNOTATE_FUNCTION(x)=__attribute__((annotate(#x)))","-I/home/satvara/Qt/Tools/QtCreator/share/qtcreator/cplusplus/wrappedQtHeaders","-I/home/satvara/Qt/Tools/QtCreator/share/qtcreator/cplusplus/wrappedQtHeaders/QtCore","-I/home/satvara/Dev/blood","-I/home/satvara/Qt/6.7.2/gcc_64/include","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtQuick","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtOpenGL","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtWidgets","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtGui","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtQmlModels","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtQml","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtQmlIntegration","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtNetwork","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtSql","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtCore","-I/home/satvara/Dev/blood/build/Desktop_Qt_6_7_2-Debug","-I/home/satvara/Qt/6.7.2/gcc_64/mkspecs/linux-g++","-isystem","/usr/include/c++/14","-isystem","/usr/include/c++/14/x86_64-redhat-linux","-isystem","/usr/include/c++/14/backward","-isystem","/usr/local/include","-isystem","/home/satvara/Qt/Tools/QtCreator/libexec/qtcreator/clang/lib/clang/17/include","-isystem","/usr/include","-fmessage-length=0","-fdiagnostics-show-note-include-stack","-fretain-comments-from-system-headers","-fmacro-backtrace-limit=0","-ferror-limit=1000","-x","c++","/home/satvara/Dev/blood/UserManager.cpp"],"directory":"/home/satvara/Dev/blood/build/Desktop_Qt_6_7_2-Debug/.qtc_clangd","file":"/home/satvara/Dev/blood/UserManager.cpp"},{"arguments":["clang","-Wno-documentation-unknown-command","-Wno-unknown-warning-option","-Wno-unknown-pragmas","-nostdinc","-nostdinc++","-pipe","-g","-std=gnu++1z","-Wall","-Wextra","-fPIC","-D_REENTRANT","-fsyntax-only","-m64","--target=x86_64-redhat-linux","-DQT_QML_DEBUG","-DQT_QUICK_LIB","-DQT_OPENGL_LIB","-DQT_WIDGETS_LIB","-DQT_GUI_LIB","-DQT_QMLMODELS_LIB","-DQT_QML_LIB","-DQT_QMLINTEGRATION_LIB","-DQT_NETWORK_LIB","-DQT_SQL_LIB","-DQT_CORE_LIB","-DQ_CREATOR_RUN","-DQT_ANNOTATE_FUNCTION(x)=__attribute__((annotate(#x)))","-I/home/satvara/Qt/Tools/QtCreator/share/qtcreator/cplusplus/wrappedQtHeaders","-I/home/satvara/Qt/Tools/QtCreator/share/qtcreator/cplusplus/wrappedQtHeaders/QtCore","-I/home/satvara/Dev/blood","-I/home/satvara/Qt/6.7.2/gcc_64/include","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtQuick","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtOpenGL","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtWidgets","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtGui","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtQmlModels","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtQml","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtQmlIntegration","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtNetwork","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtSql","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtCore","-I/home/satvara/Dev/blood/build/Desktop_Qt_6_7_2-Debug","-I/home/satvara/Qt/6.7.2/gcc_64/mkspecs/linux-g++","-isystem","/usr/include/c++/14","-isystem","/usr/include/c++/14/x86_64-redhat-linux","-isystem","/usr/include/c++/14/backward","-isystem","/usr/local/include","-isystem","/home/satvara/Qt/Tools/QtCreator/libexec/qtcreator/clang/lib/clang/17/include","-isystem","/usr/include","-fmessage-length=0","-fdiagnostics-show-note-include-stack","-fretain-comments-from-system-headers","-fmacro-backtrace-limit=0","-ferror-limit=1000","-x","c++","/home/satvara/Dev/blood/main.cpp"],"directory":"/home/satvara/Dev/blood/build/Desktop_Qt_6_7_2-Debug/.qtc_clangd","file":"/home/satvara/Dev/blood/main.cpp"},{"arguments":["clang","-Wno-documentation-unknown-command","-Wno-unknown-warning-option","-Wno-unknown-pragmas","-nostdinc","-nostdinc++","-pipe","-g","-std=gnu++1z","-Wall","-Wextra","-fPIC","-D_REENTRANT","-fsyntax-only","-m64","--target=x86_64-redhat-linux","-DQT_QML_DEBUG","-DQT_QUICK_LIB","-DQT_OPENGL_LIB","-DQT_WIDGETS_LIB","-DQT_GUI_LIB","-DQT_QMLMODELS_LIB","-DQT_QML_LIB","-DQT_QMLINTEGRATION_LIB","-DQT_NETWORK_LIB","-DQT_SQL_LIB","-DQT_CORE_LIB","-DQ_CREATOR_RUN","-DQT_ANNOTATE_FUNCTION(x)=__attribute__((annotate(#x)))","-I/home/satvara/Qt/Tools/QtCreator/share/qtcreator/cplusplus/wrappedQtHeaders","-I/home/satvara/Qt/Tools/QtCreator/share/qtcreator/cplusplus/wrappedQtHeaders/QtCore","-I/home/satvara/Dev/blood","-I/home/satvara/Qt/6.7.2/gcc_64/include","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtQuick","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtOpenGL","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtWidgets","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtGui","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtQmlModels","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtQml","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtQmlIntegration","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtNetwork","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtSql","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtCore","-I/home/satvara/Dev/blood/build/Desktop_Qt_6_7_2-Debug","-I/home/satvara/Qt/6.7.2/gcc_64/mkspecs/linux-g++","-isystem","/usr/include/c++/14","-isystem","/usr/include/c++/14/x86_64-redhat-linux","-isystem","/usr/include/c++/14/backward","-isystem","/usr/local/include","-isystem","/home/satvara/Qt/Tools/QtCreator/libexec/qtcreator/clang/lib/clang/17/include","-isystem","/usr/include","-fmessage-length=0","-fdiagnostics-show-note-include-stack","-fretain-comments-from-system-headers","-fmacro-backtrace-limit=0","-ferror-limit=1000","-x","c++-header","/home/satvara/Dev/blood/AppointmentManager.h"],"directory":"/home/satvara/Dev/blood/build/Desktop_Qt_6_7_2-Debug/.qtc_clangd","file":"/home/satvara/Dev/blood/AppointmentManager.h"},{"arguments":["clang","-Wno-documentation-unknown-command","-Wno-unknown-warning-option","-Wno-unknown-pragmas","-nostdinc","-nostdinc++","-pipe","-g","-std=gnu++1z","-Wall","-Wextra","-fPIC","-D_REENTRANT","-fsyntax-only","-m64","--target=x86_64-redhat-linux","-DQT_QML_DEBUG","-DQT_QUICK_LIB","-DQT_OPENGL_LIB","-DQT_WIDGETS_LIB","-DQT_GUI_LIB","-DQT_QMLMODELS_LIB","-DQT_QML_LIB","-DQT_QMLINTEGRATION_LIB","-DQT_NETWORK_LIB","-DQT_SQL_LIB","-DQT_CORE_LIB","-DQ_CREATOR_RUN","-DQT_ANNOTATE_FUNCTION(x)=__attribute__((annotate(#x)))","-I/home/satvara/Qt/Tools/QtCreator/share/qtcreator/cplusplus/wrappedQtHeaders","-I/home/satvara/Qt/Tools/QtCreator/share/qtcreator/cplusplus/wrappedQtHeaders/QtCore","-I/home/satvara/Dev/blood","-I/home/satvara/Qt/6.7.2/gcc_64/include","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtQuick","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtOpenGL","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtWidgets","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtGui","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtQmlModels","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtQml","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtQmlIntegration","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtNetwork","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtSql","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtCore","-I/home/satvara/Dev/blood/build/Desktop_Qt_6_7_2-Debug","-I/home/satvara/Qt/6.7.2/gcc_64/mkspecs/linux-g++","-isystem","/usr/include/c++/14","-isystem","/usr/include/c++/14/x86_64-redhat-linux","-isystem","/usr/include/c++/14/backward","-isystem","/usr/local/include","-isystem","/home/satvara/Qt/Tools/QtCreator/libexec/qtcreator/clang/lib/clang/17/include","-isystem","/usr/include","-fmessage-length=0","-fdiagnostics-show-note-include-stack","-fretain-comments-from-system-headers","-fmacro-backtrace-limit=0","-ferror-limit=1000","-x","c++-header","/home/satvara/Dev/blood/DatabaseConfig.h"],"directory":"/home/satvara/Dev/blood/build/Desktop_Qt_6_7_2-Debug/.qtc_clangd","file":"/home/satvara/Dev/blood/DatabaseConfig.h"},{"arguments":["clang","-Wno-documentation-unknown-command","-Wno-unknown-warning-option","-Wno-unknown-pragmas","-nostdinc","-nostdinc++","-pipe","-g","-std=gnu++1z","-Wall","-Wextra","-fPIC","-D_REENTRANT","-fsyntax-only","-m64","--target=x86_64-redhat-linux","-DQT_QML_DEBUG","-DQT_QUICK_LIB","-DQT_OPENGL_LIB","-DQT_WIDGETS_LIB","-DQT_GUI_LIB","-DQT_QMLMODELS_LIB","-DQT_QML_LIB","-DQT_QMLINTEGRATION_LIB","-DQT_NETWORK_LIB","-DQT_SQL_LIB","-DQT_CORE_LIB","-DQ_CREATOR_RUN","-DQT_ANNOTATE_FUNCTION(x)=__attribute__((annotate(#x)))","-I/home/satvara/Qt/Tools/QtCreator/share/qtcreator/cplusplus/wrappedQtHeaders","-I/home/satvara/Qt/Tools/QtCreator/share/qtcreator/cplusplus/wrappedQtHeaders/QtCore","-I/home/satvara/Dev/blood","-I/home/satvara/Qt/6.7.2/gcc_64/include","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtQuick","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtOpenGL","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtWidgets","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtGui","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtQmlModels","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtQml","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtQmlIntegration","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtNetwork","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtSql","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtCore","-I/home/satvara/Dev/blood/build/Desktop_Qt_6_7_2-Debug","-I/home/satvara/Qt/6.7.2/gcc_64/mkspecs/linux-g++","-isystem","/usr/include/c++/14","-isystem","/usr/include/c++/14/x86_64-redhat-linux","-isystem","/usr/include/c++/14/backward","-isystem","/usr/local/include","-isystem","/home/satvara/Qt/Tools/QtCreator/libexec/qtcreator/clang/lib/clang/17/include","-isystem","/usr/include","-fmessage-length=0","-fdiagnostics-show-note-include-stack","-fretain-comments-from-system-headers","-fmacro-backtrace-limit=0","-ferror-limit=1000","-x","c++-header","/home/satvara/Dev/blood/DatabaseError.h"],"directory":"/home/satvara/Dev/blood/build/Desktop_Qt_6_7_2-Debug/.qtc_clangd","file":"/home/satvara/Dev/blood/DatabaseError.h"},{"arguments":["clang","-Wno-documentation-unknown-command","-Wno-unknown-warning-option","-Wno-unknown-pragmas","-nostdinc","-nostdinc++","-pipe","-g","-std=gnu++1z","-Wall","-Wextra","-fPIC","-D_REENTRANT","-fsyntax-only","-m64","--target=x86_64-redhat-linux","-DQT_QML_DEBUG","-DQT_QUICK_LIB","-DQT_OPENGL_LIB","-DQT_WIDGETS_LIB","-DQT_GUI_LIB","-DQT_QMLMODELS_LIB","-DQT_QML_LIB","-DQT_QMLINTEGRATION_LIB","-DQT_NETWORK_LIB","-DQT_SQL_LIB","-DQT_CORE_LIB","-DQ_CREATOR_RUN","-DQT_ANNOTATE_FUNCTION(x)=__attribute__((annotate(#x)))","-I/home/satvara/Qt/Tools/QtCreator/share/qtcreator/cplusplus/wrappedQtHeaders","-I/home/satvara/Qt/Tools/QtCreator/share/qtcreator/cplusplus/wrappedQtHeaders/QtCore","-I/home/satvara/Dev/blood","-I/home/satvara/Qt/6.7.2/gcc_64/include","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtQuick","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtOpenGL","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtWidgets","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtGui","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtQmlModels","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtQml","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtQmlIntegration","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtNetwork","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtSql","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtCore","-I/home/satvara/Dev/blood/build/Desktop_Qt_6_7_2-Debug","-I/home/satvara/Qt/6.7.2/gcc_64/mkspecs/linux-g++","-isystem","/usr/include/c++/14","-isystem","/usr/include/c++/14/x86_64-redhat-linux","-isystem","/usr/include/c++/14/backward","-isystem","/usr/local/include","-isystem","/home/satvara/Qt/Tools/QtCreator/libexec/qtcreator/clang/lib/clang/17/include","-isystem","/usr/include","-fmessage-length=0","-fdiagnostics-show-note-include-stack","-fretain-comments-from-system-headers","-fmacro-backtrace-limit=0","-ferror-limit=1000","-x","c++-header","/home/satvara/Dev/blood/DatabaseManager.h"],"directory":"/home/satvara/Dev/blood/build/Desktop_Qt_6_7_2-Debug/.qtc_clangd","file":"/home/satvara/Dev/blood/DatabaseManager.h"},{"arguments":["clang","-Wno-documentation-unknown-command","-Wno-unknown-warning-option","-Wno-unknown-pragmas","-nostdinc","-nostdinc++","-pipe","-g","-std=gnu++1z","-Wall","-Wextra","-fPIC","-D_REENTRANT","-fsyntax-only","-m64","--target=x86_64-redhat-linux","-DQT_QML_DEBUG","-DQT_QUICK_LIB","-DQT_OPENGL_LIB","-DQT_WIDGETS_LIB","-DQT_GUI_LIB","-DQT_QMLMODELS_LIB","-DQT_QML_LIB","-DQT_QMLINTEGRATION_LIB","-DQT_NETWORK_LIB","-DQT_SQL_LIB","-DQT_CORE_LIB","-DQ_CREATOR_RUN","-DQT_ANNOTATE_FUNCTION(x)=__attribute__((annotate(#x)))","-I/home/satvara/Qt/Tools/QtCreator/share/qtcreator/cplusplus/wrappedQtHeaders","-I/home/satvara/Qt/Tools/QtCreator/share/qtcreator/cplusplus/wrappedQtHeaders/QtCore","-I/home/satvara/Dev/blood","-I/home/satvara/Qt/6.7.2/gcc_64/include","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtQuick","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtOpenGL","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtWidgets","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtGui","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtQmlModels","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtQml","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtQmlIntegration","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtNetwork","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtSql","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtCore","-I/home/satvara/Dev/blood/build/Desktop_Qt_6_7_2-Debug","-I/home/satvara/Qt/6.7.2/gcc_64/mkspecs/linux-g++","-isystem","/usr/include/c++/14","-isystem","/usr/include/c++/14/x86_64-redhat-linux","-isystem","/usr/include/c++/14/backward","-isystem","/usr/local/include","-isystem","/home/satvara/Qt/Tools/QtCreator/libexec/qtcreator/clang/lib/clang/17/include","-isystem","/usr/include","-fmessage-length=0","-fdiagnostics-show-note-include-stack","-fretain-comments-from-system-headers","-fmacro-backtrace-limit=0","-ferror-limit=1000","-x","c++-header","/home/satvara/Dev/blood/DonationManager.h"],"directory":"/home/satvara/Dev/blood/build/Desktop_Qt_6_7_2-Debug/.qtc_clangd","file":"/home/satvara/Dev/blood/DonationManager.h"},{"arguments":["clang","-Wno-documentation-unknown-command","-Wno-unknown-warning-option","-Wno-unknown-pragmas","-nostdinc","-nostdinc++","-pipe","-g","-std=gnu++1z","-Wall","-Wextra","-fPIC","-D_REENTRANT","-fsyntax-only","-m64","--target=x86_64-redhat-linux","-DQT_QML_DEBUG","-DQT_QUICK_LIB","-DQT_OPENGL_LIB","-DQT_WIDGETS_LIB","-DQT_GUI_LIB","-DQT_QMLMODELS_LIB","-DQT_QML_LIB","-DQT_QMLINTEGRATION_LIB","-DQT_NETWORK_LIB","-DQT_SQL_LIB","-DQT_CORE_LIB","-DQ_CREATOR_RUN","-DQT_ANNOTATE_FUNCTION(x)=__attribute__((annotate(#x)))","-I/home/satvara/Qt/Tools/QtCreator/share/qtcreator/cplusplus/wrappedQtHeaders","-I/home/satvara/Qt/Tools/QtCreator/share/qtcreator/cplusplus/wrappedQtHeaders/QtCore","-I/home/satvara/Dev/blood","-I/home/satvara/Qt/6.7.2/gcc_64/include","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtQuick","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtOpenGL","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtWidgets","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtGui","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtQmlModels","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtQml","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtQmlIntegration","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtNetwork","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtSql","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtCore","-I/home/satvara/Dev/blood/build/Desktop_Qt_6_7_2-Debug","-I/home/satvara/Qt/6.7.2/gcc_64/mkspecs/linux-g++","-isystem","/usr/include/c++/14","-isystem","/usr/include/c++/14/x86_64-redhat-linux","-isystem","/usr/include/c++/14/backward","-isystem","/usr/local/include","-isystem","/home/satvara/Qt/Tools/QtCreator/libexec/qtcreator/clang/lib/clang/17/include","-isystem","/usr/include","-fmessage-length=0","-fdiagnostics-show-note-include-stack","-fretain-comments-from-system-headers","-fmacro-backtrace-limit=0","-ferror-limit=1000","-x","c++-header","/home/satvara/Dev/blood/HospitalManager.h"],"directory":"/home/satvara/Dev/blood/build/Desktop_Qt_6_7_2-Debug/.qtc_clangd","file":"/home/satvara/Dev/blood/HospitalManager.h"},{"arguments":["clang","-Wno-documentation-unknown-command","-Wno-unknown-warning-option","-Wno-unknown-pragmas","-nostdinc","-nostdinc++","-pipe","-g","-std=gnu++1z","-Wall","-Wextra","-fPIC","-D_REENTRANT","-fsyntax-only","-m64","--target=x86_64-redhat-linux","-DQT_QML_DEBUG","-DQT_QUICK_LIB","-DQT_OPENGL_LIB","-DQT_WIDGETS_LIB","-DQT_GUI_LIB","-DQT_QMLMODELS_LIB","-DQT_QML_LIB","-DQT_QMLINTEGRATION_LIB","-DQT_NETWORK_LIB","-DQT_SQL_LIB","-DQT_CORE_LIB","-DQ_CREATOR_RUN","-DQT_ANNOTATE_FUNCTION(x)=__attribute__((annotate(#x)))","-I/home/satvara/Qt/Tools/QtCreator/share/qtcreator/cplusplus/wrappedQtHeaders","-I/home/satvara/Qt/Tools/QtCreator/share/qtcreator/cplusplus/wrappedQtHeaders/QtCore","-I/home/satvara/Dev/blood","-I/home/satvara/Qt/6.7.2/gcc_64/include","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtQuick","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtOpenGL","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtWidgets","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtGui","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtQmlModels","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtQml","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtQmlIntegration","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtNetwork","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtSql","-I/home/satvara/Qt/6.7.2/gcc_64/include/QtCore","-I/home/satvara/Dev/blood/build/Desktop_Qt_6_7_2-Debug","-I/home/satvara/Qt/6.7.2/gcc_64/mkspecs/linux-g++","-isystem","/usr/include/c++/14","-isystem","/usr/include/c++/14/x86_64-redhat-linux","-isystem","/usr/include/c++/14/backward","-isystem","/usr/local/include","-isystem","/home/satvara/Qt/Tools/QtCreator/libexec/qtcreator/clang/lib/clang/17/include","-isystem","/usr/include","-fmessage-length=0","-fdiagnostics-show-note-include-stack","-fretain-comments-from-system-headers","-fmacro-backtrace-limit=0","-ferror-limit=1000","-x","c++-header","/home/satvara/Dev/blood/UserManager.h"],"directory":"/home/satvara/Dev/blood/build/Desktop_Qt_6_7_2-Debug/.qtc_clangd","file":"/home/satvara/Dev/blood/UserManager.h"}]
+
+
+==================================================
+File 20: main.cpp
+==================================================
+
+#include <QGuiApplication>
+#include <QQmlApplicationEngine>
+#include <QQmlContext>
+#include "DatabaseManager.h"
+
+int main(int argc, char *argv[])
+{
+    QGuiApplication app(argc, argv);
+
+    qmlRegisterType<DatabaseManager>("com.bloodbound.database", 1, 0, "DatabaseManager");
+
+    DatabaseManager dbManager;
+    if (!dbManager.initialize()) {
+        qCritical() << "Failed to initialize database";
+        return -1;
+    }
+
+    QQmlApplicationEngine engine;
+
+    engine.rootContext()->setContextProperty("dbManager", &dbManager);
+
+    const QUrl url(QStringLiteral("../../qml/main.qml"));
+    QObject::connect(&engine, &QQmlApplicationEngine::objectCreated,
+        &app, [url](QObject *obj, const QUrl &objUrl) {
+            if (!obj && url == objUrl)
+                QCoreApplication::exit(-1);
+        }, Qt::QueuedConnection);
+    engine.load(url);
+
+    return app.exec();
+}
+
+
+==================================================
+File 22: resources.qrc
+==================================================
+
+<RCC>
+    <qresource prefix="/Image">
+        <file>Image/Logo.png</file>
+    </qresource>
+</RCC>
+
+

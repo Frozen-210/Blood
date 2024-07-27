@@ -1,23 +1,22 @@
 #ifndef DATABASECONFIG_H
 #define DATABASECONFIG_H
 
-#include <QString>
 #include <QSettings>
+#include <QString>
 
-class DatabaseConfig
-{
+class DatabaseConfig {
 public:
-    static QString getDatabaseName() {
-        QSettings settings("YourCompany", "BloodDonationApp");
-        return settings.value("Database/Name", "data.db").toString();
-    }
+  static QString getDatabaseName() {
+    QSettings settings("YourCompany", "BloodDonationApp");
+    return settings.value("Database/Name", "appdatabase.db").toString();
+  }
 
-    static void setDatabaseName(const QString& name) {
-        QSettings settings("YourCompany", "BloodDonationApp");
-        settings.setValue("Database/Name", name);
-    }
+  static void setDatabaseName(const QString &name) {
+    QSettings settings("YourCompany", "BloodDonationApp");
+    settings.setValue("Database/Name", name);
+  }
 
-    // Add more configuration methods as needed
+  // Add more configuration methods as needed
 };
 
 #endif // DATABASECONFIG_H

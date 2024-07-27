@@ -1,200 +1,265 @@
+// UserDashboardPage.qml
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 import "../components"
 
 Page {
-    id: root
+  id: userDashboardPage
+
+ThemeColors {
+    id: theme
+    property color primaryColor: "#E53935"
+    property color accentColor: "#1E88E5"
+    property color backgroundColor: "#FFFFFF"
+    property color textColor: "#212121"
+    property color lightTextColor: "#757575"
+    property font headerFont: Qt.font({ family: "Segoe UI", pixelSize: 32, weight: Font.Bold })
+    property font subHeaderFont: Qt.font({ family: "Segoe UI", pixelSize: 24, weight: Font.DemiBold })
+    property font bodyFont: Qt.font({ family: "Segoe UI", pixelSize: 16 })
+    property font buttonFont: Qt.font({ family: "Segoe UI", pixelSize: 16, weight: Font.Medium })
+}
+    
     property string userEmail: ""
     property var userData: ({})
 
-    background: Rectangle {
-        color: "#36393f"  // Discord dark background
-    }
-
     Component.onCompleted: {
         userData = dbManager.userManager().getUserData(userEmail)
+        updateUI()
     }
 
-    RowLayout {
+    function updateUI() {
+        userNameLabel.text = "Name: " + (userData.name || "")
+        userEmailLabel.text = "Email: " + (userData.email || "")
+        userBloodGroupLabel.text = "Blood Group: " + (userData.bloodGroup || "")
+        userHealthInfoLabel.text = "Health Info: " + (userData.healthInfo || "")
+        
+        // Fetch and display appointments
+        var appointments = dbManager.appointmentManager().getUserAppointments(userEmail)
+        appointmentListModel.clear()
+        for (var i = 0; i < appointments.length; i++) {
+            appointmentListModel.append(appointments[i])
+        }
+        
+        // Fetch and display donations
+        var donations = dbManager.donationManager().getUserDonationHistory(userEmail)
+        donationListModel.clear()
+        for (var j = 0; j < donations.length; j++) {
+            donationListModel.append(donations[j])
+        }
+    }
+
+    ColumnLayout {
         anchors.fill: parent
-        spacing: 0
+        spacing: 20
+        anchors.margins: 20
 
-        // Left sidebar (Server list in Discord)
-        Rectangle {
-            Layout.preferredWidth: 70
-            Layout.fillHeight: true
-            color: "#202225"  // Discord darker sidebar
-
+        RowLayout {
+            Layout.fillWidth: true
+            
             ColumnLayout {
-                anchors.fill: parent
-                spacing: 10
-
-                Rectangle {
-                    Layout.alignment: Qt.AlignHCenter
-                    Layout.topMargin: 10
-                    width: 50
-                    height: 50
-                    radius: 25
+                Layout.fillWidth: true
+                
+                Label {
+                    text: "User Dashboard"
+                    font: theme.headerFont
                     color: theme.primaryColor
-
-                    Label {
-                        anchors.centerIn: parent
-                        text: userData.name ? userData.name[0].toUpperCase() : "U"
-                        font.pixelSize: 24
-                        color: "white"
-                    }
                 }
 
-                Rectangle {
-                    Layout.alignment: Qt.AlignHCenter
-                    width: 50
-                    height: 50
-                    radius: 25
-                    color: "#40444b"
+                Label { id: userNameLabel; font: theme.bodyFont }
+                Label { id: userEmailLabel; font: theme.bodyFont }
+                Label { id: userBloodGroupLabel; font: theme.bodyFont }
+                Label { id: userHealthInfoLabel; font: theme.bodyFont }
+            }
 
-                    Label {
-                        anchors.centerIn: parent
-                        text: "+"
-                        font.pixelSize: 24
-                        color: "#43b581"
-                    }
+            Button {
+                text: "Logout"
+                onClicked: logout()
+                
+                contentItem: Text {
+                    text: parent.text
+                    font: theme.buttonFont
+                    color: "white"
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
 
-                    MouseArea {
-                        anchors.fill: parent
-                        onClicked: console.log("Add new action clicked")
-                    }
+                background: Rectangle {
+                    color: theme.primaryColor
+                    radius: 5
                 }
             }
         }
 
-        // Channel list and content area
-        RowLayout {
+        TabBar {
+            id: tabBar
+            Layout.fillWidth: true
+
+            TabButton {
+                text: "Appointments"
+                width: implicitWidth
+                font: theme.buttonFont
+            }
+            TabButton {
+                text: "Donations"
+                width: implicitWidth
+                font: theme.buttonFont
+            }
+        }
+
+        StackLayout {
+            currentIndex: tabBar.currentIndex
             Layout.fillWidth: true
             Layout.fillHeight: true
-            spacing: 0
 
-            // Channel list
-            Rectangle {
-                Layout.preferredWidth: 240
-                Layout.fillHeight: true
-                color: "#2f3136"  // Discord channel list background
-
+            // Appointments Tab
+            Item {
                 ColumnLayout {
                     anchors.fill: parent
-                    spacing: 0
-
-                    Rectangle {
-                        Layout.fillWidth: true
-                        height: 48
-                        color: "#292b2f"
-
-                        RowLayout {
-                            anchors.fill: parent
-                            anchors.leftMargin: 10
-                            anchors.rightMargin: 10
-
-                            Label {
-                                text: userData.name || "User"
-                                font.pixelSize: 16
-                                color: "white"
-                            }
-
-                            Item { Layout.fillWidth: true }
-
-                            CustomButton {
-                                text: "Logout"
-                                buttonColor: "#40444b"
-                                textColor: "white"
-                                onClicked: logout()
-                            }
-                        }
-                    }
+                    spacing: 10
 
                     ListView {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
-                        model: ["Profile", "Donations", "Appointments"]
+                        model: ListModel { id: appointmentListModel }
                         delegate: ItemDelegate {
+                            text: model.date + " - " + model.hospitalName
                             width: parent.width
-                            height: 40
-                            
-                            contentItem: RowLayout {
-                                Image {
-                                    source: "qrc:/images/" + modelData.toLowerCase() + "_icon.png"
-                                    Layout.preferredWidth: 20
-                                    Layout.preferredHeight: 20
-                                }
-                                Label {
-                                    text: modelData
-                                    color: "white"
-                                    font.pixelSize: 16
-                                }
-                            }
-                            
-                            background: Rectangle {
-                                color: tabBar.currentIndex === index ? "#40444b" : "transparent"
-                            }
-                            
-                            onClicked: tabBar.currentIndex = index
+                            font: theme.bodyFont
+                        }
+                    }
+
+                    Button {
+                        text: "Book Appointment"
+                        onClicked: bookAppointmentDialog.open()
+                        Layout.alignment: Qt.AlignRight
+                        
+                        contentItem: Text {
+                            text: parent.text
+                            font: theme.buttonFont
+                            color: "white"
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                        }
+
+                        background: Rectangle {
+                            color: theme.accentColor
+                            radius: 5
                         }
                     }
                 }
             }
 
-            // Content area
-            ColumnLayout {
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                spacing: 0
-
-                Rectangle {
-                    Layout.fillWidth: true
-                    height: 48
-                    color: "#36393f"
-
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.leftMargin: 10
-                        anchors.rightMargin: 10
-
-                        Label {
-                            text: ["Profile", "Donations", "Appointments"][tabBar.currentIndex]
-                            font.pixelSize: 16
-                            color: "white"
-                        }
-                    }
-                }
-
-                TabBar {
-                    id: tabBar
-                    Layout.fillWidth: true
-                    visible: false  // Hidden, but used for state management
-                }
-
-                StackLayout {
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    currentIndex: tabBar.currentIndex
-
-                    UserProfilePage {
-                        userData: userData
-                    }
-
-                    UserDonationsPage {
-                        userEmail: userEmail
-                    }
-
-                    UserAppointmentsPage {
-                        userEmail: userEmail
+            // Donations Tab
+            Item {
+                ListView {
+                    anchors.fill: parent
+                    model: ListModel { id: donationListModel }
+                    delegate: ItemDelegate {
+                        text: model.date + " - " + model.amount + "ml"
+                        width: parent.width
+                        font: theme.bodyFont
                     }
                 }
             }
         }
     }
 
+    Dialog {
+        id: bookAppointmentDialog
+        title: "Book Appointment"
+        standardButtons: Dialog.Ok | Dialog.Cancel
+
+        ColumnLayout {
+            width: parent.width
+            spacing: 10
+
+            ComboBox {
+                id: hospitalCombo
+                model: dbManager.hospitalManager().getHospitalList()
+                textRole: "name"
+                Layout.fillWidth: true
+                font: theme.bodyFont
+            }
+
+            TextField {
+                id: appointmentDateField
+                placeholderText: "Appointment Date (YYYY-MM-DD)"
+                Layout.fillWidth: true
+                font: theme.bodyFont
+            }
+
+            TextField {
+                id: healthConditionField
+                placeholderText: "Current Health Condition"
+                Layout.fillWidth: true
+                font: theme.bodyFont
+            }
+        }
+
+        onAccepted: {
+            var lastDonationDate = dbManager.donationManager().getLastDonationDate(userEmail)
+            var today = new Date()
+            var threeMonthsAgo = new Date(today.setMonth(today.getMonth() - 3))
+            
+            if (lastDonationDate && new Date(lastDonationDate) > threeMonthsAgo) {
+                showError("You must wait 3 months between donations.")
+                return
+            }
+
+            var success = dbManager.appointmentManager().scheduleAppointment(
+                userEmail,
+                hospitalCombo.currentValue.email,
+                appointmentDateField.text,
+                healthConditionField.text
+            )
+
+            if (success) {
+                showMessage("Appointment booked successfully!")
+                updateUI()
+            } else {
+                showError("Failed to book appointment. Please try again.")
+            }
+        }
+    }
+
+    function showError(message) {
+        errorDialog.text = message
+        errorDialog.open()
+    }
+
+    function showMessage(message) {
+        messageDialog.text = message
+        messageDialog.open()
+    }
+
     function logout() {
-        // Implement logout logic here
-        stackView.pop(null)
+        stackView.pop(null) // Go back to the main page
+    }
+
+    Dialog {
+        id: errorDialog
+        title: "Error"
+        standardButtons: Dialog.Ok
+        property alias text: errorLabel.text
+
+        Label {
+            id: errorLabel
+            wrapMode: Text.Wrap
+            font: theme.bodyFont
+        }
+    }
+
+    Dialog {
+        id: messageDialog
+        title: "Message"
+        standardButtons: Dialog.Ok
+        property alias text: messageLabel.text
+
+        Label {
+            id: messageLabel
+            wrapMode: Text.Wrap
+            font: theme.bodyFont
+        }
     }
 }

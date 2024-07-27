@@ -1,6 +1,8 @@
+// main.qml
 import QtQuick 2.15
 import QtQuick.Window 2.15
 import QtQuick.Controls 2.15
+import QtQuick.Layouts 1.15
 import "components"
 
 Window {
@@ -29,7 +31,7 @@ Window {
     // Global error dialog
     Dialog {
         id: errorDialog
-        title: "Error"
+        title: qsTr("Error")
         standardButtons: Dialog.Ok
 
         Label {
@@ -46,14 +48,6 @@ Window {
         }
     }
 
-    // Global busy indicator
-    BusyIndicator {
-        id: busyIndicator
-        anchors.centerIn: parent
-        running: false
-        z: 1000
-    }
-
     // Function to show error messages
     function showError(message) {
         errorDialog.text = message;
@@ -62,7 +56,7 @@ Window {
 
     Component.onCompleted: {
         if (!dbManager.isDatabaseConnected()) {
-            showError("Failed to connect to the database. Please check your configuration.");
+            showError(qsTr("Failed to connect to the database. Please check your configuration."));
         }
     }
 }

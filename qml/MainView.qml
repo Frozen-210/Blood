@@ -1,193 +1,240 @@
+// MainView.qml
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 import "components"
 
 Page {
+    id: mainViewPage
     background: Rectangle {
         color: theme.backgroundColor
     }
 
-    ColumnLayout {
+    RowLayout {
         anchors.fill: parent
         spacing: 0
 
-        // Header
         Rectangle {
-            Layout.fillWidth: true
-            height: 100
+            Layout.fillHeight: true
+            Layout.preferredWidth: parent.width * 0.4
             color: theme.primaryColor
 
-            Label {
+            ColumnLayout {
                 anchors.centerIn: parent
-                text: "BloodBound"
-                font: theme.headerFont
-                color: "white"
+                spacing: 30
+                width: parent.width * 0.8
+
+                Image {
+                    source: "qrc:/Image/Image/Logo.png"
+                    Layout.alignment: Qt.AlignHCenter
+                    Layout.preferredWidth: Math.min(parent.width * 0.6, 180)
+                    Layout.preferredHeight: Layout.preferredWidth
+                    fillMode: Image.PreserveAspectFit
+                }
+
+                Label {
+                    text: qsTr("BloodBound")
+                    font: theme.headerFont
+                    color: "white"
+                    Layout.alignment: Qt.AlignHCenter
+                }
+
+                Label {
+                    text: qsTr("Connecting donors and hospitals")
+                    font: theme.bodyFont
+                    color: "white"
+                    opacity: 0.9
+                    Layout.alignment: Qt.AlignHCenter
+                    wrapMode: Text.WordWrap
+                    horizontalAlignment: Text.AlignHCenter
+                }
             }
         }
 
-        // Main content
-        RowLayout {
-            Layout.fillWidth: true
+        Rectangle {
             Layout.fillHeight: true
-            spacing: 0
+            Layout.fillWidth: true
+            color: theme.backgroundColor
 
-            // Left side with image
-            Rectangle {
-                Layout.fillHeight: true
-                Layout.preferredWidth: parent.width * 0.4
-                color: theme.primaryColor
+            ColumnLayout {
+                anchors.centerIn: parent
+                spacing: 30
+                width: Math.min(parent.width * 0.8, 400)
 
-                Image {
-                    source: "../../Pictures/blood-donation-background.jpg"
-                    anchors.fill: parent
-                    fillMode: Image.PreserveAspectCrop
-                    opacity: 0.2
+                Label {
+                    text: qsTr("Welcome to BloodBound")
+                    font: theme.subHeaderFont
+                    color: theme.textColor
+                    Layout.alignment: Qt.AlignHCenter
                 }
 
-                ColumnLayout {
-                    anchors.centerIn: parent
-                    spacing: 20
-                    width: parent.width * 0.8
-
-                    Image {
-                        source: "../../Pictures/Logo.png"
-                        Layout.alignment: Qt.AlignHCenter
-                        Layout.preferredWidth: Math.min(parent.width * 0.6, 180)
-                        Layout.preferredHeight: Layout.preferredWidth
-                        fillMode: Image.PreserveAspectFit
+                TabBar {
+                    id: tabBar
+                    Layout.fillWidth: true
+                    background: Rectangle {
+                        color: "transparent"
                     }
 
-                    Label {
-                        text: qsTr("Connecting donors and hospitals")
-                        font: theme.bodyFont
-                        color: "white"
-                        opacity: 0.9
-                        Layout.alignment: Qt.AlignHCenter
-                        wrapMode: Text.WordWrap
-                        horizontalAlignment: Text.AlignHCenter
-                    }
-                }
-            }
-
-            // Right side with tabs and buttons
-            Rectangle {
-                Layout.fillHeight: true
-                Layout.fillWidth: true
-                color: theme.backgroundColor
-
-                ColumnLayout {
-                    anchors.centerIn: parent
-                    spacing: 30
-                    width: Math.min(parent.width * 0.8, 400)
-
-                    Label {
-                        text: qsTr("Welcome to BloodBound")
-                        font: theme.subHeaderFont
-                        color: theme.textColor
-                        Layout.alignment: Qt.AlignHCenter
-                    }
-
-                    TabBar {
-                        id: tabBar
-                        Layout.fillWidth: true
+                    TabButton {
+                        text: qsTr("Donor")
+                        width: implicitWidth
+                        font: theme.buttonFont
+                        contentItem: Text {
+                            text: parent.text
+                            font: parent.font
+                            opacity: parent.checked ? 1.0 : 0.7
+                            color: parent.checked ? theme.primaryColor : theme.textColor
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                        }
                         background: Rectangle {
                             color: "transparent"
-                        }
-
-                        TabButton {
-                            text: qsTr("Donor")
-                            width: implicitWidth
-                            font: theme.buttonFont
-                            contentItem: Text {
-                                text: parent.text
-                                font: parent.font
-                                opacity: parent.checked ? 1.0 : 0.7
-                                color: parent.checked ? theme.primaryColor : theme.textColor
-                                horizontalAlignment: Text.AlignHCenter
-                                verticalAlignment: Text.AlignVCenter
+                            Rectangle {
+                                width: parent.width
+                                height: 3
+                                anchors.bottom: parent.bottom
+                                color: parent.checked ? theme.primaryColor : "transparent"
                             }
-                            background: Rectangle {
-                                color: "transparent"
-                                Rectangle {
-                                    width: parent.width
-                                    height: 3
-                                    anchors.bottom: parent.bottom
-                                    color: parent.checked ? theme.primaryColor : "transparent"
+                        }
+                    }
+
+                    TabButton {
+                        text: qsTr("Hospital")
+                        width: implicitWidth
+                        font: theme.buttonFont
+                        contentItem: Text {
+                            text: parent.text
+                            font: parent.font
+                            opacity: parent.checked ? 1.0 : 0.7
+                            color: parent.checked ? theme.primaryColor : theme.textColor
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                        }
+                        background: Rectangle {
+                            color: "transparent"
+                            Rectangle {
+                                width: parent.width
+                                height: 3
+                                anchors.bottom: parent.bottom
+                                color: parent.checked ? theme.primaryColor : "transparent"
+                            }
+                        }
+                    }
+                }
+
+                StackLayout {
+                    currentIndex: tabBar.currentIndex
+                    Layout.fillWidth: true
+
+                    // Donor options
+                    ColumnLayout {
+                        spacing: 15
+                        Repeater {
+                            model: [
+                                { text: qsTr("Donor Login"), page: "auth/UserLoginPage.qml", primary: true },
+                                { text: qsTr("Donor Sign Up"), page: "auth/UserSignupPage.qml", primary: false }
+                            ]
+                            delegate: Button {
+                                text: modelData.text
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 50
+                                font: theme.buttonFont
+                                onClicked: stackView.push(modelData.page)
+                                background: Rectangle {
+                                    color: modelData.primary ? theme.accentColor : "transparent"
+                                    border.color: theme.accentColor
+                                    border.width: modelData.primary ? 0 : 2
+                                    radius: 25
                                 }
-                            }
-                        }
+                                contentItem: Text {
+                                    text: parent.text
+                                    font: parent.font
+                                    color: modelData.primary ? "white" : theme.accentColor
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+                                }
 
-                        TabButton {
-                            text: qsTr("Hospital")
-                            width: implicitWidth
-                            font: theme.buttonFont
-                            contentItem: Text {
-                                text: parent.text
-                                font: parent.font
-                                opacity: parent.checked ? 1.0 : 0.7
-                                color: parent.checked ? theme.accentColor : theme.textColor
-                                horizontalAlignment: Text.AlignHCenter
-                                verticalAlignment: Text.AlignVCenter
-                            }
-                            background: Rectangle {
-                                color: "transparent"
-                                Rectangle {
-                                    width: parent.width
-                                    height: 3
-                                    anchors.bottom: parent.bottom
-                                    color: parent.checked ? theme.accentColor : "transparent"
+                                Behavior on scale {
+                                    NumberAnimation {
+                                        duration: 100
+                                        easing.type: Easing.InOutQuad
+                                    }
+                                }
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onEntered: parent.scale = 1.05
+                                    onExited: parent.scale = 1.0
+                                    onClicked: parent.clicked()
                                 }
                             }
                         }
                     }
 
-                    StackLayout {
-                        currentIndex: tabBar.currentIndex
-                        Layout.fillWidth: true
+                    // Hospital options
+                    ColumnLayout {
+                        spacing: 15
+                        Repeater {
+                            model: [
+                                { text: qsTr("Hospital Login"), page: "auth/HospitalLoginPage.qml", primary: true },
+                                { text: qsTr("Hospital Sign Up"), page: "auth/HospitalSignupPage.qml", primary: false }
+                            ]
+                            delegate: Button {
+                                text: modelData.text
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 50
+                                font: theme.buttonFont
+                                onClicked: stackView.push(modelData.page)
+                                background: Rectangle {
+                                    color: modelData.primary ? theme.primaryColor : "transparent"
+                                    border.color: theme.primaryColor
+                                    border.width: modelData.primary ? 0 : 2
+                                    radius: 25
+                                }
+                                contentItem: Text {
+                                    text: parent.text
+                                    font: parent.font
+                                    color: modelData.primary ? "white" : theme.primaryColor
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+                                }
 
-                        // Donor options
-                        ColumnLayout {
-                            spacing: 15
-                            CustomButton {
-                                text: qsTr("Donor Login")
-                                buttonColor: theme.primaryColor
-                                onClicked: stackView.push("../auth/UserLoginPage.qml")
-                                Layout.fillWidth: true
-                            }
-                            CustomButton {
-                                text: qsTr("Donor Sign Up")
-                                buttonColor: "transparent"
-                                textColor: theme.primaryColor
-                                onClicked: stackView.push("../auth/UserSignupPage.qml")
-                                Layout.fillWidth: true
-                            }
-                        }
+                                Behavior on scale {
+                                    NumberAnimation {
+                                        duration: 100
+                                        easing.type: Easing.InOutQuad
+                                    }
+                                }
 
-                        // Hospital options
-                        ColumnLayout {
-                            spacing: 15
-                            CustomButton {
-                                text: qsTr("Hospital Login")
-                                buttonColor: theme.accentColor
-                                onClicked: stackView.push("../auth/HospitalLoginPage.qml")
-                                Layout.fillWidth: true
-                            }
-                            CustomButton {
-                                text: qsTr("Hospital Sign Up")
-                                buttonColor: "transparent"
-                                textColor: theme.accentColor
-                                onClicked: stackView.push("../auth/HospitalSignupPage.qml")
-                                Layout.fillWidth: true
+                                MouseArea {
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onEntered: parent.scale = 1.05
+                                    onExited: parent.scale = 1.0
+                                    onClicked: parent.clicked()
+                                }
                             }
                         }
                     }
+                }
 
-                    CustomButton {
-                        text: qsTr("Learn More")
-                        buttonColor: "#4CAF50"
-                        onClicked: stackView.push("../common/LearnMorePage.qml")
-                        Layout.fillWidth: true
+                Item { height: 20 } // Spacer
+
+                Text {
+                    text: qsTr("Learn More About BloodBound")
+                    color: theme.accentColor
+                    font: theme.bodyFont
+                    Layout.alignment: Qt.AlignHCenter
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        hoverEnabled: true
+                        onEntered: parent.font.underline = true
+                        onExited: parent.font.underline = false
+                        onClicked: stackView.push("common/LearnMorePage.qml")
                     }
                 }
             }

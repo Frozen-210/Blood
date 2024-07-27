@@ -1,7 +1,5 @@
 <RCC>
-    <qresource prefix="/"/>
-    <qresource prefix="/new/prefix1">
-        <file>image.jpeg</file>
-        <file>../../Pictures/Logo.png</file>
+    <qresource prefix="/Image">
+        <file>Image/Logo.png</file>
     </qresource>
 </RCC>
