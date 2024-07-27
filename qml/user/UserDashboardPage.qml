@@ -5,20 +5,7 @@ import QtQuick.Layouts 1.15
 import "../components"
 
 Page {
-  id: userDashboardPage
-
-ThemeColors {
-    id: theme
-    property color primaryColor: "#E53935"
-    property color accentColor: "#1E88E5"
-    property color backgroundColor: "#FFFFFF"
-    property color textColor: "#212121"
-    property color lightTextColor: "#757575"
-    property font headerFont: Qt.font({ family: "Segoe UI", pixelSize: 32, weight: Font.Bold })
-    property font subHeaderFont: Qt.font({ family: "Segoe UI", pixelSize: 24, weight: Font.DemiBold })
-    property font bodyFont: Qt.font({ family: "Segoe UI", pixelSize: 16 })
-    property font buttonFont: Qt.font({ family: "Segoe UI", pixelSize: 16, weight: Font.Medium })
-}
+    id: userDashboardPage
     
     property string userEmail: ""
     property var userData: ({})
@@ -34,14 +21,15 @@ ThemeColors {
         userBloodGroupLabel.text = "Blood Group: " + (userData.bloodGroup || "")
         userHealthInfoLabel.text = "Health Info: " + (userData.healthInfo || "")
         
-        // Fetch and display appointments
+        totalDonationsLabel.text = "Total Donations: " + dbManager.userManager().getUserTotalDonations(userEmail)
+        lastDonationLabel.text = "Last Donation: " + dbManager.userManager().getUserLastDonation(userEmail)
+        
         var appointments = dbManager.appointmentManager().getUserAppointments(userEmail)
         appointmentListModel.clear()
         for (var i = 0; i < appointments.length; i++) {
             appointmentListModel.append(appointments[i])
         }
         
-        // Fetch and display donations
         var donations = dbManager.donationManager().getUserDonationHistory(userEmail)
         donationListModel.clear()
         for (var j = 0; j < donations.length; j++) {
@@ -70,23 +58,19 @@ ThemeColors {
                 Label { id: userEmailLabel; font: theme.bodyFont }
                 Label { id: userBloodGroupLabel; font: theme.bodyFont }
                 Label { id: userHealthInfoLabel; font: theme.bodyFont }
+                Label { id: totalDonationsLabel; font: theme.bodyFont }
+                Label { id: lastDonationLabel; font: theme.bodyFont }
             }
 
-            Button {
-                text: "Logout"
-                onClicked: logout()
-                
-                contentItem: Text {
-                    text: parent.text
-                    font: theme.buttonFont
-                    color: "white"
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
+            ColumnLayout {
+                Button {
+                    text: "Logout"
+                    onClicked: logout()
                 }
-
-                background: Rectangle {
-                    color: theme.primaryColor
-                    radius: 5
+                
+                Button {
+                    text: "Delete Account"
+                    onClicked: deleteAccountDialog.open()
                 }
             }
         }
@@ -95,16 +79,9 @@ ThemeColors {
             id: tabBar
             Layout.fillWidth: true
 
-            TabButton {
-                text: "Appointments"
-                width: implicitWidth
-                font: theme.buttonFont
-            }
-            TabButton {
-                text: "Donations"
-                width: implicitWidth
-                font: theme.buttonFont
-            }
+            TabButton { text: "Appointments" }
+            TabButton { text: "Donations" }
+            TabButton { text: "Search Donors" }
         }
 
         StackLayout {
@@ -125,27 +102,12 @@ ThemeColors {
                         delegate: ItemDelegate {
                             text: model.date + " - " + model.hospitalName
                             width: parent.width
-                            font: theme.bodyFont
                         }
                     }
 
                     Button {
                         text: "Book Appointment"
                         onClicked: bookAppointmentDialog.open()
-                        Layout.alignment: Qt.AlignRight
-                        
-                        contentItem: Text {
-                            text: parent.text
-                            font: theme.buttonFont
-                            color: "white"
-                            horizontalAlignment: Text.AlignHCenter
-                            verticalAlignment: Text.AlignVCenter
-                        }
-
-                        background: Rectangle {
-                            color: theme.accentColor
-                            radius: 5
-                        }
                     }
                 }
             }
@@ -158,9 +120,68 @@ ThemeColors {
                     delegate: ItemDelegate {
                         text: model.date + " - " + model.amount + "ml"
                         width: parent.width
-                        font: theme.bodyFont
                     }
                 }
+            }
+
+            // Search Donors Tab
+            Item {
+                ColumnLayout {
+                    anchors.fill: parent
+                    spacing: 10
+
+                    TextField {
+                        id: bloodGroupField
+                        placeholderText: "Blood Group"
+                        Layout.fillWidth: true
+                    }
+
+                    TextField {
+                        id: locationField
+                        placeholderText: "Location"
+                        Layout.fillWidth: true
+                    }
+
+                    Button {
+                        text: "Search Donors"
+                        onClicked: searchDonors()
+                    }
+
+                    ListView {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        model: ListModel { id: donorListModel }
+                        delegate: ItemDelegate {
+                            text: model.name + " - " + model.bloodGroup + " - " + model.address
+                            width: parent.width
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Dialog {
+        id: deleteAccountDialog
+        title: "Delete Account"
+        standardButtons: Dialog.Ok | Dialog.Cancel
+
+        ColumnLayout {
+            spacing: 10
+            TextField {
+                id: deletePasswordField
+                placeholderText: "Enter your password"
+                echoMode: TextInput.Password
+                Layout.fillWidth: true
+            }
+        }
+
+        onAccepted: {
+            var success = dbManager.userManager().deleteUser(userEmail, deletePasswordField.text)
+            if (success) {
+                logout()
+            } else {
+                showError("Failed to delete account. Please check your password.")
             }
         }
     }
@@ -179,48 +200,54 @@ ThemeColors {
                 model: dbManager.hospitalManager().getHospitalList()
                 textRole: "name"
                 Layout.fillWidth: true
-                font: theme.bodyFont
             }
 
             TextField {
                 id: appointmentDateField
                 placeholderText: "Appointment Date (YYYY-MM-DD)"
                 Layout.fillWidth: true
-                font: theme.bodyFont
+            }
+
+            TextField {
+                id: appointmentTimeField
+                placeholderText: "Appointment Time (HH:MM)"
+                Layout.fillWidth: true
             }
 
             TextField {
                 id: healthConditionField
                 placeholderText: "Current Health Condition"
                 Layout.fillWidth: true
-                font: theme.bodyFont
             }
         }
 
         onAccepted: {
-            var lastDonationDate = dbManager.donationManager().getLastDonationDate(userEmail)
-            var today = new Date()
-            var threeMonthsAgo = new Date(today.setMonth(today.getMonth() - 3))
-            
-            if (lastDonationDate && new Date(lastDonationDate) > threeMonthsAgo) {
-                showError("You must wait 3 months between donations.")
-                return
-            }
-
             var success = dbManager.appointmentManager().scheduleAppointment(
                 userEmail,
                 hospitalCombo.currentValue.email,
-                appointmentDateField.text,
+                appointmentDateField.text + " " + appointmentTimeField.text,
                 healthConditionField.text
             )
 
             if (success) {
-                showMessage("Appointment booked successfully!")
                 updateUI()
+                showMessage("Appointment booked successfully!")
             } else {
                 showError("Failed to book appointment. Please try again.")
             }
         }
+    }
+
+    function searchDonors() {
+        var donors = dbManager.userManager().searchDonors(bloodGroupField.text, locationField.text)
+        donorListModel.clear()
+        for (var i = 0; i < donors.length; i++) {
+            donorListModel.append(donors[i])
+        }
+    }
+
+    function logout() {
+        stackView.pop(null) // Go back to the main page
     }
 
     function showError(message) {
@@ -233,10 +260,6 @@ ThemeColors {
         messageDialog.open()
     }
 
-    function logout() {
-        stackView.pop(null) // Go back to the main page
-    }
-
     Dialog {
         id: errorDialog
         title: "Error"
@@ -246,7 +269,6 @@ ThemeColors {
         Label {
             id: errorLabel
             wrapMode: Text.Wrap
-            font: theme.bodyFont
         }
     }
 
@@ -259,7 +281,6 @@ ThemeColors {
         Label {
             id: messageLabel
             wrapMode: Text.Wrap
-            font: theme.bodyFont
         }
     }
 }
