@@ -72,22 +72,14 @@ Page {
                     id: emailField
                     placeholderText: qsTr("Enter hospital email (e.g., hospital@example.com)")
                     Layout.fillWidth: true
-                    leftPadding: 40
+                    leftPadding: 20
+                    palette.text : "black"
+                    palette.placeholderText : "#d6d2cb"
 
                     background: Rectangle {
                         color: "#F8F8F8"
                         radius: 5
                         border.color: emailField.activeFocus ? theme.accentColor : "#DDDDDD"
-                        border.width: emailField.activeFocus ? 2 : 1
-                    }
-
-                    Image {
-                        source: "qrc:/Image/Image/hospital_icon.png"
-                        width: 20
-                        height: 20
-                        anchors.left: parent.left
-                        anchors.verticalCenter: parent.verticalCenter
-                        anchors.leftMargin: 10
                     }
                 }
 
@@ -96,22 +88,14 @@ Page {
                     placeholderText: qsTr("Enter password (min. 8 characters)")
                     echoMode: TextInput.Password
                     Layout.fillWidth: true
-                    leftPadding: 40
+                    leftPadding: 20
+                    palette.text : "black"
+                    palette.placeholderText : "#d6d2cb"
 
                     background: Rectangle {
                         color: "#F8F8F8"
                         radius: 5
                         border.color: passwordField.activeFocus ? theme.accentColor : "#DDDDDD"
-                        border.width: passwordField.activeFocus ? 2 : 1
-                    }
-
-                    Image {
-                        source: "qrc:/Image/Image/lock_icon.png"
-                        width: 20
-                        height: 20
-                        anchors.left: parent.left
-                        anchors.verticalCenter: parent.verticalCenter
-                        anchors.leftMargin: 10
                     }
                 }
 

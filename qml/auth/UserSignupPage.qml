@@ -90,7 +90,9 @@ ThemeColors {
                         id: nameField
                         placeholderText: qsTr("Full Name")
                         Layout.fillWidth: true
-                        leftPadding: 40
+                        leftPadding: 20
+                        palette.text : "black"
+                        palette.placeholderText : "#d6d2cb"
 
                         background: Rectangle {
                             color: "#F8F8F8"
@@ -105,7 +107,9 @@ ThemeColors {
                         id: emailField
                         placeholderText: qsTr("Email")
                         Layout.fillWidth: true
-                        leftPadding: 40
+                        leftPadding: 20
+                        palette.text : "black"
+                        palette.placeholderText : "#d6d2cb"
 
                         background: Rectangle {
                             color: "#F8F8F8"
@@ -122,7 +126,10 @@ ThemeColors {
                         placeholderText: qsTr("Password")
                         echoMode: TextInput.Password
                         Layout.fillWidth: true
-                        leftPadding: 40
+                        leftPadding: 20
+                        palette.text : "black"
+                        palette.placeholderText : "#d6d2cb"
+                        
 
                         background: Rectangle {
                             color: "#F8F8F8"
@@ -137,11 +144,11 @@ ThemeColors {
                         id: bloodGroupCombo
                         model: ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]
                         Layout.fillWidth: true
-                        leftPadding: 40
+                        leftPadding: 10
 
                         background: Rectangle {
                             color: "#F8F8F8"
-                            radius: 5
+                            radius: 20
                             border.color: bloodGroupCombo.activeFocus ? theme.accentColor : "#DDDDDD"
                             border.width: bloodGroupCombo.activeFocus ? 2 : 1
                         }
@@ -153,7 +160,10 @@ ThemeColors {
                         id: healthInfoField
                         placeholderText: qsTr("Health Information (Optional)")
                         Layout.fillWidth: true
-                        leftPadding: 40
+                        leftPadding: 20
+
+                        palette.text : "black"
+                        palette.placeholderText : "#d6d2cb"
 
                         background: Rectangle {
                             color: "#F8F8F8"

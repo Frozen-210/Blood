@@ -73,7 +73,9 @@ Page {
                     id: emailField
                     placeholderText: qsTr("Enter your email")
                     Layout.fillWidth: true
-                    leftPadding: 40
+                    leftPadding: 20
+                        palette.text : "black"
+                        palette.placeholderText : "#d6d2cb"
 
                     background: Rectangle {
                         color: "#F8F8F8"
@@ -88,7 +90,9 @@ Page {
                     placeholderText: qsTr("Enter your password")
                     echoMode: TextInput.Password
                     Layout.fillWidth: true
-                    leftPadding: 40
+                    leftPadding: 20
+                        palette.text : "black"
+                        palette.placeholderText : "#d6d2cb"
 
                     background: Rectangle {
                         color: "#F8F8F8"

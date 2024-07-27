@@ -76,7 +76,9 @@ Page {
                         id: nameField
                         placeholderText: qsTr("Hospital Name (e.g., City General Hospital)")
                         Layout.fillWidth: true
-                        leftPadding: 40
+                        leftPadding: 20
+                        palette.text : "black"
+                        palette.placeholderText : "#d6d2cb"
 
                         background: Rectangle {
                             color: "#F8F8F8"
@@ -84,37 +86,21 @@ Page {
                             border.color: nameField.activeFocus ? theme.accentColor : "#DDDDDD"
                             border.width: nameField.activeFocus ? 2 : 1
                         }
-
-                        Image {
-                            source: "qrc:/Image/Image/hospital_icon.png"
-                            width: 20
-                            height: 20
-                            anchors.left: parent.left
-                            anchors.verticalCenter: parent.verticalCenter
-                            anchors.leftMargin: 10
-                        }
                     }
 
                     TextField {
                         id: emailField
                         placeholderText: qsTr("Hospital Email (e.g., info@cityhospital.com)")
                         Layout.fillWidth: true
-                        leftPadding: 40
+                        leftPadding: 20
+                        palette.text : "black"
+                        palette.placeholderText : "#d6d2cb"
 
                         background: Rectangle {
                             color: "#F8F8F8"
                             radius: 5
                             border.color: emailField.activeFocus ? theme.accentColor : "#DDDDDD"
                             border.width: emailField.activeFocus ? 2 : 1
-                        }
-
-                        Image {
-                            source: "qrc:/Image/Image/email_icon.png"
-                            width: 20
-                            height: 20
-                            anchors.left: parent.left
-                            anchors.verticalCenter: parent.verticalCenter
-                            anchors.leftMargin: 10
                         }
                     }
 
@@ -124,6 +110,8 @@ Page {
                         echoMode: TextInput.Password
                         Layout.fillWidth: true
                         leftPadding: 40
+                        palette.text : "black"
+                    palette.placeholderText : "#d6d2cb"
 
                         background: Rectangle {
                             color: "#F8F8F8"
@@ -131,22 +119,15 @@ Page {
                             border.color: passwordField.activeFocus ? theme.accentColor : "#DDDDDD"
                             border.width: passwordField.activeFocus ? 2 : 1
                         }
-
-                        Image {
-                            source: "qrc:/Image/Image/lock_icon.png"
-                            width: 20
-                            height: 20
-                            anchors.left: parent.left
-                            anchors.verticalCenter: parent.verticalCenter
-                            anchors.leftMargin: 10
-                        }
                     }
 
                     TextField {
                         id: contactNumberField
                         placeholderText: qsTr("Contact Number (e.g., +1 234 567 8900)")
                         Layout.fillWidth: true
-                        leftPadding: 40
+                        leftPadding: 20
+                        palette.text : "black"
+                    palette.placeholderText : "#d6d2cb"
 
                         background: Rectangle {
                             color: "#F8F8F8"
@@ -154,22 +135,15 @@ Page {
                             border.color: contactNumberField.activeFocus ? theme.accentColor : "#DDDDDD"
                             border.width: contactNumberField.activeFocus ? 2 : 1
                         }
-
-                        Image {
-                            source: "qrc:/Image/Image/phone_icon.png"
-                            width: 20
-                            height: 20
-                            anchors.left: parent.left
-                            anchors.verticalCenter: parent.verticalCenter
-                            anchors.leftMargin: 10
-                        }
                     }
 
                     TextField {
                         id: addressField
                         placeholderText: qsTr("Address (e.g., 123 Main St, Suite 456)")
                         Layout.fillWidth: true
-                        leftPadding: 40
+                        leftPadding: 20
+                        palette.text : "black"
+                    palette.placeholderText : "#d6d2cb"
 
                         background: Rectangle {
                             color: "#F8F8F8"
@@ -183,7 +157,9 @@ Page {
                         id: cityField
                         placeholderText: qsTr("City (e.g., New York)")
                         Layout.fillWidth: true
-                        leftPadding: 40
+                        leftPadding: 20
+palette.text : "black"
+                    palette.placeholderText : "#d6d2cb"
 
                         background: Rectangle {
                             color: "#F8F8F8"
@@ -191,22 +167,15 @@ Page {
                             border.color: cityField.activeFocus ? theme.accentColor : "#DDDDDD"
                             border.width: cityField.activeFocus ? 2 : 1
                         }
-
-                        Image {
-                            source: "qrc:/Image/Image/city_icon.png"
-                            width: 20
-                            height: 20
-                            anchors.left: parent.left
-                            anchors.verticalCenter: parent.verticalCenter
-                            anchors.leftMargin: 10
-                        }
                     }
 
                     TextField {
                         id: stateField
                         placeholderText: qsTr("State (e.g., NY)")
                         Layout.fillWidth: true
-                        leftPadding: 40
+                        leftPadding: 20
+                        palette.text : "black"
+                    palette.placeholderText : "#d6d2cb"
 
                         background: Rectangle {
                             color: "#F8F8F8"
@@ -220,7 +189,9 @@ Page {
                         id: countryField
                         placeholderText: qsTr("Country (e.g., United States)")
                         Layout.fillWidth: true
-                        leftPadding: 40
+                        leftPadding: 20
+palette.text : "black"
+                    palette.placeholderText : "#d6d2cb"
 
                         background: Rectangle {
                             color: "#F8F8F8"
@@ -228,22 +199,15 @@ Page {
                             border.color: countryField.activeFocus ? theme.accentColor : "#DDDDDD"
                             border.width: countryField.activeFocus ? 2 : 1
                         }
-
-                        Image {
-                            source: "qrc:/Image/Image/country_icon.png"
-                            width: 20
-                            height: 20
-                            anchors.left: parent.left
-                            anchors.verticalCenter: parent.verticalCenter
-                            anchors.leftMargin: 10
-                        }
                     }
 
                     TextField {
                         id: zipField
                         placeholderText: qsTr("ZIP Code (e.g., 12345)")
                         Layout.fillWidth: true
-                        leftPadding: 40
+                        leftPadding: 20
+                        palette.text : "black"
+                    palette.placeholderText : "#d6d2cb"
 
                         background: Rectangle {
                             color: "#F8F8F8"
@@ -251,37 +215,21 @@ Page {
                             border.color: zipField.activeFocus ? theme.accentColor : "#DDDDDD"
                             border.width: zipField.activeFocus ? 2 : 1
                         }
-
-                        Image {
-                            source: "qrc:/Image/Image/zip_icon.png"
-                            width: 20
-                            height: 20
-                            anchors.left: parent.left
-                            anchors.verticalCenter: parent.verticalCenter
-                            anchors.leftMargin: 10
-                        }
                     }
 
                     TextField {
                         id: licenseField
                         placeholderText: qsTr("License Number (e.g., HOSP-12345-NY)")
                         Layout.fillWidth: true
-                        leftPadding: 40
+                        leftPadding: 20
+                        palette.text : "black"
+                    palette.placeholderText : "#d6d2cb"
 
                         background: Rectangle {
                             color: "#F8F8F8"
                             radius: 5
                             border.color: licenseField.activeFocus ? theme.accentColor : "#DDDDDD"
                             border.width: licenseField.activeFocus ? 2 : 1
-                        }
-
-                        Image {
-                            source: "qrc:/Image/Image/license_icon.png"
-                            width: 20
-                            height: 20
-                            anchors.left: parent.left
-                            anchors.verticalCenter: parent.verticalCenter
-                            anchors.leftMargin: 10
                         }
                     }
 
