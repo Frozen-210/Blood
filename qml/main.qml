@@ -12,7 +12,6 @@ Window {
     visible: true
     title: qsTr("BloodBound")
 
-    // Load the color theme
     ThemeColors {
         id: theme
     }
@@ -28,7 +27,6 @@ Window {
         MainView {}
     }
 
-    // Global error dialog
     Dialog {
         id: errorDialog
         title: qsTr("Error")
@@ -48,7 +46,6 @@ Window {
         }
     }
 
-    // Function to show error messages
     function showError(message) {
         errorDialog.text = message;
         errorDialog.open();

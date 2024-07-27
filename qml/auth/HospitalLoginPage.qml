@@ -149,9 +149,9 @@ Page {
     }
 
     function login() {
-   //     if (!validateInputs()) {
-    //        return;
-     //   }
+        if (!validateInputs()) {
+            return;
+        }
 
         var success = dbManager.hospitalManager().hospitalLogin(emailField.text, passwordField.text)
 
@@ -163,7 +163,7 @@ Page {
         }
     }
 
-  /*  function validateInputs() {
+    function validateInputs() {
         if (emailField.text.trim() === "" || !isValidEmail(emailField.text)) {
             showError(qsTr("Please enter a valid email address."))
             return false;
@@ -178,5 +178,5 @@ Page {
     function isValidEmail(email) {
         var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         return emailRegex.test(email);
-      }*/
+      }
 }

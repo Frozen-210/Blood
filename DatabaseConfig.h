@@ -7,12 +7,12 @@
 class DatabaseConfig {
 public:
   static QString getDatabaseName() {
-    QSettings settings("YourCompany", "BloodDonationApp");
-    return settings.value("Database/Name", "appdatabase.db").toString();
+    QSettings settings("bloodbound", "BloodDonationApp");
+    return settings.value("Database/Name", "bloodbound.db").toString();
   }
 
   static void setDatabaseName(const QString &name) {
-    QSettings settings("YourCompany", "BloodDonationApp");
+    QSettings settings("bloodbound", "BloodDonationApp");
     settings.setValue("Database/Name", name);
   }
 

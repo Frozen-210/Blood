@@ -148,7 +148,7 @@ ThemeColors {
 
                         background: Rectangle {
                             color: "#F8F8F8"
-                            radius: 20
+                            radius: 100
                             border.color: bloodGroupCombo.activeFocus ? theme.accentColor : "#DDDDDD"
                             border.width: bloodGroupCombo.activeFocus ? 2 : 1
                         }
@@ -201,7 +201,7 @@ ThemeColors {
                         MouseArea {
                             anchors.fill: parent
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: stackView.pop()
+                            onClicked: stackView.push("UserLoginPage.qml")
                         }
                     }
 
@@ -225,9 +225,9 @@ ThemeColors {
     }
 
     function signUp() {
-    //    if (!validateInputs()) {
-      //      return;
-      //  }
+        if (!validateInputs()) {
+           return;
+       }
 
         var success = dbManager.userManager().insertUser(
             nameField.text,
@@ -246,7 +246,7 @@ ThemeColors {
         }
     }
 
-  /*  function validateInputs() {
+  function validateInputs() {
         if (nameField.text.trim() === "") {
             showError(qsTr("Please enter your full name."))
             return false;
@@ -265,5 +265,5 @@ ThemeColors {
     function isValidEmail(email) {
         var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         return emailRegex.test(email);
-      }*/
+      }
 }

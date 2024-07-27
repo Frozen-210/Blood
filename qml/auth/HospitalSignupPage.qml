@@ -284,9 +284,9 @@ palette.text : "black"
     }
 
     function signUp() {
- //       if (!validateInputs()) {
-     //       return;
-       // }
+        if (!validateInputs()) {
+            return;
+        }
 
         var success = dbManager.hospitalManager().insertHospital(
             nameField.text,
@@ -309,7 +309,7 @@ palette.text : "black"
         }
     }
 
- /*   function validateInputs() {
+    function validateInputs() {
         if (nameField.text.trim() === "") {
             showError(qsTr("Please enter the hospital name."))
             return false;
@@ -356,5 +356,5 @@ palette.text : "black"
     function isValidEmail(email) {
         var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         return emailRegex.test(email);
-      }*/
+      }
 }
