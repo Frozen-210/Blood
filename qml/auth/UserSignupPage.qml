@@ -137,23 +137,20 @@ ThemeColors {
                             border.color: passwordField.activeFocus ? theme.accentColor : "#DDDDDD"
                             border.width: passwordField.activeFocus ? 2 : 1
                         }
-
-                    }
+                      }
 
                     ComboBox {
                         id: bloodGroupCombo
-                        model: ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]
+                        model: ["Select Blood Group ","A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]
                         Layout.fillWidth: true
                         leftPadding: 10
 
-                        background: Rectangle {
+                     /*   background: Rectangle {
                             color: "#F8F8F8"
                             radius: 100
                             border.color: bloodGroupCombo.activeFocus ? theme.accentColor : "#DDDDDD"
-                            border.width: bloodGroupCombo.activeFocus ? 2 : 1
-                        }
-
-
+                            border.width: bloodGroupCombo.activeFocus ? 4:1
+                          }*/
                     }
 
                     TextField {

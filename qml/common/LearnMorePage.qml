@@ -7,9 +7,11 @@ Page {
 
     property color primaryColor: "#E53935"
     property color accentColor: "#1E88E5"
-    property color backgroundColor: "#FFFFFF"
+    property color backgroundColor: "#F5F5F5"
+    property color cardColor: "#FFFFFF"
     property color textColor: "#333333"
     property color lightTextColor: "#757575"
+    property color cardBorderColor: "#E0E0E0"
 
     background: Rectangle {
         color: backgroundColor
@@ -28,44 +30,29 @@ Page {
             Rectangle {
                 Layout.fillWidth: true
                 height: 200
-                color: primaryColor
+                gradient: Gradient {
+                    GradientStop { position: 0.0; color: primaryColor }
+                    GradientStop { position: 1.0; color: Qt.darker(primaryColor, 1.2) }
+                }
 
-                RowLayout {
-                    anchors.fill: parent
-                    anchors.margins: 20
+                ColumnLayout {
+                    anchors.centerIn: parent
+                    spacing: 10
 
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        spacing: 10
-
-                        Text {
-                            text: "BloodBound"
-                            font.pixelSize: 36
-                            font.weight: Font.Bold
-                            color: "white"
-                        }
-
-                        Text {
-                            text: "Learn More About Blood Donation"
-                            font.pixelSize: 24
-                            color: "white"
-                            opacity: 0.9
-                        }
+                    Text {
+                        text: "Learn About Blood Donation"
+                        font.pixelSize: 32
+                        font.weight: Font.Bold
+                        color: "white"
+                        Layout.alignment: Qt.AlignHCenter
                     }
 
-                    Rectangle {
-                        width: 100
-                        height: 100
-                        radius: 50
+                    Text {
+                        text: "Discover how you can make a life-saving difference"
+                        font.pixelSize: 18
                         color: "white"
-
-                        Text {
-                            anchors.centerIn: parent
-                            text: "BB"
-                            font.pixelSize: 40
-                            font.weight: Font.Bold
-                            color: primaryColor
-                        }
+                        opacity: 0.9
+                        Layout.alignment: Qt.AlignHCenter
                     }
                 }
             }
@@ -73,107 +60,172 @@ Page {
             // Content
             ColumnLayout {
                 Layout.fillWidth: true
-                Layout.margins: 40
-                spacing: 40
+                Layout.margins: 20
+                spacing: 30
 
-                // Why Donate Blood?
-                ContentSection {
-                    title: "Why Donate Blood?"
-                    content: "Blood donation is a vital way to help save lives. When you donate blood, you're giving someone another chance at life. One donation can save up to three lives! Your contribution can make a significant difference in emergency situations, surgeries, and for patients with chronic illnesses."
+                InfoCard {
+                    title: "The Importance of Blood Donation"
+                    icon: "icons/heart.svg"
+                    content: "Blood donation is a critical lifeline for millions of people worldwide. Every day, countless lives are saved through the generosity of blood donors. Here's why your donation matters:
+
+• Emergency situations: Accidents, natural disasters, and medical emergencies often require large quantities of blood.
+• Chronic conditions: Patients with diseases like sickle cell anemia and thalassemia need regular transfusions.
+• Surgeries: Many complex medical procedures rely on blood donations.
+• Cancer treatments: Chemotherapy can deplete blood cells, making transfusions necessary.
+• Childbirth complications: Some pregnancies require blood transfusions to save both mother and child.
+
+By donating blood, you become an unsung hero, directly contributing to saving lives in your community and beyond."
                 }
 
-                // Who Can Donate?
-                ContentSection {
-                    title: "Who Can Donate?"
-                    content: "In general, to donate blood you must be:
-• In good health
-• At least 17 years old in most states
-• Weigh at least 110 pounds
-• Have not donated blood in the last 56 days
+                InfoCard {
+                    title: "Types of Blood Donations"
+                    icon: "icons/blood-drop.svg"
+                    content: "There are several ways to donate blood, each serving different medical needs:
 
-It's important to note that eligibility criteria may vary. Some medical conditions or medications may affect your ability to donate. Always consult with the donation center or your healthcare provider if you have any concerns."
+1. Whole Blood Donation
+   • Most common type of donation
+   • Takes about 10 minutes
+   • Donatable every 56 days
+
+2. Platelet Donation (Apheresis)
+   • Crucial for cancer patients and trauma victims
+   • Takes about 2-3 hours
+   • Donatable every 7 days, up to 24 times a year
+
+3. Plasma Donation
+   • Used for patients with liver failure, severe infections, and burn victims
+   • Takes about 1-2 hours
+   • Donatable every 28 days
+
+4. Power Red Donation
+   • Allows you to donate two units of red blood cells
+   • Takes about 30 minutes longer than whole blood donation
+   • Donatable every 112 days, up to 3 times a year
+
+Each type of donation is valuable and can help different patients in need. Consult with your local blood center to determine which type of donation is best for you."
                 }
 
-                // The Donation Process
-                ContentSection {
+                InfoCard {
+                    title: "Eligibility and Preparation"
+                    icon: "icons/checklist.svg"
+                    content: "To ensure the safety of both donors and recipients, there are some eligibility requirements for blood donation. While these may vary slightly depending on your location, general guidelines include:
+
+• Age: Usually 17 or older (16 with parental consent in some areas)
+• Weight: At least 110 pounds (50 kg)
+• Health: Generally good health and feeling well
+• Identification: Valid ID required
+
+Before donating:
+• Get a good night's sleep
+• Eat a healthy meal
+• Drink extra water
+• Bring a list of medications you're taking
+
+Some factors that might temporarily disqualify you:
+• Recent travel to certain countries
+• Certain medications
+• Recent tattoos or piercings
+• Pregnancy or recent childbirth
+
+Remember, these guidelines are for your safety and the safety of potential recipients. Always be honest about your health history when donating blood."
+                }
+
+                InfoCard {
                     title: "The Donation Process"
-                    content: "The blood donation process is simple and safe. Here's what you can expect:
+                    icon: "icons/process.svg"
+                    content: "Donating blood is a simple and rewarding process. Here's what you can expect:
 
-1. Registration: Sign in and show identification.
-2. Medical History and Mini-Physical: Answer questions about your health and undergo a quick check of your temperature, pulse, blood pressure, and hemoglobin levels.
-3. Donation: The actual blood donation typically takes about 8-10 minutes.
-4. Refreshments and Rest: Enjoy some snacks and drinks while resting for about 15 minutes before leaving.
+1. Registration (5-10 minutes)
+   • Sign in and show identification
+   • Review basic eligibility requirements
 
-The entire process usually takes about an hour, with the actual donation only a small part of that time."
+2. Health History and Mini-Physical (10-15 minutes)
+   • Complete a confidential questionnaire about your health history
+   • Undergo a quick check of temperature, blood pressure, pulse, and hemoglobin levels
+
+3. The Donation (8-10 minutes for whole blood)
+   • A sterile needle is inserted for the blood draw
+   • You'll be seated comfortably during the process
+   • Staff will ensure you're feeling well throughout
+
+4. Refreshments and Recovery (10-15 minutes)
+   • Enjoy snacks and drinks
+   • Rest for a short period before leaving
+
+5. Post-Donation Care
+   • Follow staff instructions for self-care after donation
+   • Resume normal activities, avoiding strenuous exercise for 24 hours
+
+The entire process usually takes about an hour, with the actual blood draw only lasting about 10 minutes. Your comfort and safety are priorities throughout the donation process."
                 }
 
-                // After Donating
-                ContentSection {
-                    title: "After Donating"
-                    content: "To ensure a smooth recovery after donating:
-• Drink extra fluids for the next day or two
-• Avoid strenuous physical activity or heavy lifting for about five hours
-• If you feel lightheaded, lie down with your feet up until the feeling passes
-• Keep the bandage on your arm for a few hours
-• Eat well-balanced meals for the next few days
+                InfoCard {
+                    title: "Blood Types and Compatibility"
+                    icon: "icons/blood-types.svg"
+                    content: "Understanding blood types is crucial for effective transfusions. There are eight main blood types, determined by the presence or absence of A and B antigens on red blood cells and the Rh factor:
 
-Remember, your body will replenish the fluid loss within 24 hours, but it takes about 4-6 weeks to fully replace the donated red blood cells."
+• A positive (A+)
+• A negative (A-)
+• B positive (B+)
+• B negative (B-)
+• O positive (O+)
+• O negative (O-)
+• AB positive (AB+)
+• AB negative (AB-)
+
+Key facts:
+• O negative is the universal donor for red blood cells
+• AB positive is the universal recipient
+• O positive is the most common blood type
+• AB negative is the rarest blood type
+
+Compatibility:
+• Type O can donate red blood cells to all types
+• Type AB can receive red blood cells from all types
+• For plasma donation, the situation is reversed
+
+Your blood type is valuable regardless of its rarity. Blood centers need a diverse supply to meet all patient needs effectively."
                 }
 
-                // Call to Action
                 Rectangle {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: 150
+                    Layout.preferredHeight: 100
                     color: accentColor
                     radius: 10
 
-                    ColumnLayout {
+                    RowLayout {
                         anchors.centerIn: parent
-                        spacing: 15
+                        spacing: 20
 
                         Text {
-                            text: "Ready to Make a Difference?"
+                            text: "Ready to save lives?"
                             font.pixelSize: 24
                             font.weight: Font.Bold
                             color: "white"
-                            Layout.alignment: Qt.AlignHCenter
                         }
 
                         Button {
-                            text: "Sign Up to Donate"
-                            Layout.preferredWidth: 350
-                            Layout.preferredHeight: 50
+                            text: "Schedule a Donation"
                             font.pixelSize: 18
-                            font.weight: Font.Medium
-                            onClicked: stackView.push("../auth/UserSignupPage.qml")
+                            padding: 15
+
                             background: Rectangle {
                                 color: "white"
-                                radius: 25
+                                radius: 5
+                            }
+
+                            contentItem: Text {
+                                text: parent.text
+                                font: parent.font
+                                color: accentColor
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                            }
+
+                            onClicked: {
+                                // Navigate to donation scheduling page or open external link
                             }
                         }
-                    }
-                }
-
-                // Back to Main Menu
-                Button {
-                    text: "Back to Main Menu"
-                    Layout.alignment: Qt.AlignHCenter
-                    Layout.preferredWidth: 200
-                    Layout.preferredHeight: 40
-                    font.pixelSize: 16
-                    onClicked: stackView.pop()
-                    background: Rectangle {
-                        color: "transparent"
-                        border.color: primaryColor
-                        border.width: 2
-                        radius: 15
-                    }
-                    contentItem: Text {
-                        text: parent.text
-                        font.pixelSize: parent.font.pixelSize
-                        color: primaryColor
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
                     }
                 }
             }
@@ -181,11 +233,11 @@ Remember, your body will replenish the fluid loss within 24 hours, but it takes 
             // Footer
             Rectangle {
                 Layout.fillWidth: true
-                height: 50
-                color: "#F5F5F5"
+                height: 80
+                color: Qt.darker(backgroundColor, 1.05)
 
                 Text {
-                    text: "© 2024 BloodBound. All rights reserved."
+                    text: "© 2024 BloodBound. Empowering communities through blood donation."
                     font.pixelSize: 14
                     color: lightTextColor
                     anchors.centerIn: parent
@@ -194,28 +246,50 @@ Remember, your body will replenish the fluid loss within 24 hours, but it takes 
         }
     }
 
-    // Custom component for content sections
-    component ContentSection: ColumnLayout {
+    // Custom component for information cards
+    component InfoCard: Rectangle {
         property string title
+        property string icon
         property string content
 
         Layout.fillWidth: true
-        spacing: 15
+        height: cardContent.height + 40
+        color: cardColor
+        radius: 10
+        border.color: cardBorderColor
+        border.width: 1
 
-        Text {
-            text: title
-            font.pixelSize: 28
-            font.weight: Font.Bold
-            color: primaryColor
-        }
+        ColumnLayout {
+            id: cardContent
+            anchors { left: parent.left; right: parent.right; top: parent.top; margins: 20 }
+            spacing: 15
 
-        Text {
-            text: content
-            font.pixelSize: 16
-            color: textColor
-            wrapMode: Text.Wrap
-            lineHeight: 1.4
-            Layout.fillWidth: true
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 10
+
+                Image {
+                    source: icon
+                    sourceSize.width: 24
+                    sourceSize.height: 24
+                }
+
+                Text {
+                    text: title
+                    font.pixelSize: 22
+                    font.weight: Font.Bold
+                    color: primaryColor
+                }
+            }
+
+            Text {
+                text: content
+                font.pixelSize: 16
+                color: textColor
+                wrapMode: Text.Wrap
+                lineHeight: 1.4
+                Layout.fillWidth: true
+            }
         }
     }
 }

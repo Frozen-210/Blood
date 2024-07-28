@@ -146,7 +146,6 @@ Page {
                     }
                 }
             }
-        }
     }
 
     function login() {

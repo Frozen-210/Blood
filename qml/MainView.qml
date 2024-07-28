@@ -200,14 +200,12 @@ Page {
                                     horizontalAlignment: Text.AlignHCenter
                                     verticalAlignment: Text.AlignVCenter
                                 }
-
                                 Behavior on scale {
                                     NumberAnimation {
                                         duration: 100
                                         easing.type: Easing.InOutQuad
                                     }
                                 }
-
                                 MouseArea {
                                     anchors.fill: parent
                                     hoverEnabled: true
@@ -220,8 +218,6 @@ Page {
                         }
                     }
                 }
-
-                Item { height: 20 } // Spacer
 
                 Text {
                     text: qsTr("Learn More About BloodBound")
