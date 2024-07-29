@@ -1,5 +1,6 @@
 #pragma once
 
+#include "qtmetamacros.h"
 #include <QLoggingCategory>
 #include <QObject>
 #include <QSqlDatabase>
@@ -13,9 +14,12 @@ class AppointmentManager : public QObject {
 public:
   explicit AppointmentManager(QSqlDatabase &db, QObject *parent = nullptr);
 
+  // When no healthCondition are given calls this function
+
   Q_INVOKABLE bool scheduleAppointment(const QString &userEmail,
                                        const QString &hospitalEmail,
                                        const QDateTime &appointmentDate);
+
   Q_INVOKABLE QVariantList getUserAppointments(const QString &userEmail);
   Q_INVOKABLE QVariantList
   getHospitalAppointments(const QString &hospitalEmail);

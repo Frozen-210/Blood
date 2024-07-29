@@ -1,19 +1,12 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
+import "../components"
 
 Page {
     id: learnMorePage
 
-    property color primaryColor: "#E53935"
-    property color accentColor: "#1E88E5"
-    property color backgroundColor: "#F5F5F5"
-    property color cardColor: "#FFFFFF"
-    property color textColor: "#333333"
-    property color lightTextColor: "#757575"
-    property color cardBorderColor: "#E0E0E0"
-
-    background: Rectangle {
+   background: Rectangle {
         color: backgroundColor
     }
 

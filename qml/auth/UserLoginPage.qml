@@ -1,20 +1,96 @@
-// UserLoginPage.qml
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 import "../components"
 
+
 Page {
-    id: loginPage
+  id: loginPage
+
+
+ErrorDialog{
+  id:errorDialog
+}
     
+    // Set the background color of the page
     background: Rectangle {
         color: theme.backgroundColor
     }
 
+    // Custom ErrorDialog component
+    // This dialog will be used to display error messages
+  /*  Dialog {
+        id: errorDialog
+        anchors.centerIn: parent
+        modal: true
+        focus: true
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+        
+        property alias errorMessage: messageText.text
+        property alias errorTitle: titleText.text
+
+        // Style the dialog background
+        background: Rectangle {
+            color: theme.backgroundColor
+            border.color: theme.primaryColor
+            border.width: 2
+            radius: 10
+        }
+
+        // Content of the error dialog
+        ColumnLayout {
+            spacing: 20
+            width: parent.width
+
+
+            // Error title
+            Text {
+                id: titleText
+                font: theme.headerFont
+                color: theme.primaryColor
+                Layout.alignment: Qt.AlignHCenter
+            }
+
+            // Error message
+            Text {
+                id: messageText
+                wrapMode: Text.Wrap
+                width: parent.width
+                horizontalAlignment: Text.AlignHCenter
+                font: theme.bodyFont
+                color: theme.textColor
+                Layout.fillWidth: true
+            }
+
+            // OK button to close the dialog
+            Button {
+                text: qsTr("OK")
+                Layout.alignment: Qt.AlignHCenter
+                Layout.preferredWidth: 100
+                onClicked: errorDialog.close()
+
+                contentItem: Text {
+                    text: parent.text
+                    font: theme.buttonFont
+                    color: "white"
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
+
+                background: Rectangle {
+                    color: parent.down ? Qt.darker(theme.accentColor, 1.2) : theme.accentColor
+                    radius: 5
+                }
+            }
+          }*/
+   // }
+
+    // Main content of the login page
     RowLayout {
         anchors.fill: parent
         spacing: 0
 
+        // Left side of the login page (logo and app name)
         Rectangle {
             Layout.fillHeight: true
             Layout.preferredWidth: parent.width * 0.4
@@ -52,6 +128,7 @@ Page {
             }
         }
 
+        // Right side of the login page (login form)
         Rectangle {
             Layout.fillHeight: true
             Layout.fillWidth: true
@@ -69,30 +146,32 @@ Page {
                     Layout.alignment: Qt.AlignHCenter
                 }
 
+                // Email input field
                 TextField {
                     id: emailField
                     placeholderText: qsTr("Enter your email")
                     Layout.fillWidth: true
                     leftPadding: 20
-                        palette.text : "black"
-                        palette.placeholderText : "#d6d2cb"
+                    palette.text: "black"
+                    palette.placeholderText: "#d6d2cb"
 
                     background: Rectangle {
                         color: "#F8F8F8"
                         radius: 5
                         border.color: emailField.activeFocus ? theme.accentColor : "#DDDDDD"
-                        border.width: emailField.activeFocus ? 2 : 1
+                        border.width: emailField.activeFocus ? 3 : 1
                     }
                 }
 
+                // Password input field
                 TextField {
                     id: passwordField
                     placeholderText: qsTr("Enter your password")
                     echoMode: TextInput.Password
                     Layout.fillWidth: true
                     leftPadding: 20
-                        palette.text : "black"
-                        palette.placeholderText : "#d6d2cb"
+                    palette.text: "black"
+                    palette.placeholderText: "#d6d2cb"
 
                     background: Rectangle {
                         color: "#F8F8F8"
@@ -102,6 +181,7 @@ Page {
                     }
                 }
 
+                // Login button
                 Button {
                     text: qsTr("Login")
                     Layout.fillWidth: true
@@ -121,6 +201,7 @@ Page {
                     }
                 }
 
+                // Sign up link
                 Label {
                     text: qsTr("Don't have an account? Sign up")
                     color: theme.accentColor
@@ -132,6 +213,7 @@ Page {
                     }
                 }
 
+                // Back to Main Menu link
                 Text {
                     text: qsTr("Back to Main Menu")
                     color: theme.accentColor
@@ -146,37 +228,50 @@ Page {
                     }
                 }
             }
+        }
     }
 
+    // Function to handle login process
     function login() {
         if (!validateInputs()) {
             return;
         }
 
+        // userLogin is bool 
         var success = dbManager.userManager().userLogin(emailField.text, passwordField.text)
 
         if (success) {
             var userData = dbManager.userManager().getUserData(emailField.text)
-            stackView.push("../user/UserDashboardPage.qml", {userEmail: emailField.text, userData: userData})
-        } else {
-            showError(qsTr("Login failed. Please check your credentials."))
+            stackView.push("../user/UserDashboard.qml", {userEmail: emailField.text, userData: userData})
+          } else {
+            // Calls the showError Function 
+            showError(qsTr("Login Failed"), qsTr("Login failed. Please check your credentials."))
         }
     }
 
-  function validateInputs() {
+    // Function to validate user inputs
+    function validateInputs() {
         if (emailField.text.trim() === "" || !isValidEmail(emailField.text)) {
-            showError(qsTr("Please enter a valid email address."))
+            showError(qsTr("Invalid Email"), qsTr("Please enter a valid email address."))
             return false;
         }
         if (passwordField.text === "") {
-            showError(qsTr("Please enter your password."))
+            showError(qsTr("Missing Password"), qsTr("Please enter your password."))
             return false;
         }
         return true;
     }
 
+    // Function to validate email format
     function isValidEmail(email) {
         var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         return emailRegex.test(email);
-      } 
+    }
+
+    // Function to show error dialog
+    function showError(title, message) {
+        errorDialog.errorTitle = title
+        errorDialog.errorMessage = message
+        errorDialog.open()
+    }
 }

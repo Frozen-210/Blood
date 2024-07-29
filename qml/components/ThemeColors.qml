@@ -8,8 +8,10 @@ QtObject {
     property color backgroundColor: "#FFFFFF"
     property color textColor: "#212121"
     property color lightTextColor: "#000000"
-    property font headerFont: Qt.font({ family: "Segoe UI", pixelSize: 32, weight: Font.Bold })
-    property font subHeaderFont: Qt.font({ family: "Segoe UI", pixelSize: 24, weight: Font.DemiBold })
-    property font bodyFont: Qt.font({ family: "Segoe UI", pixelSize: 16 })
-    property font buttonFont: Qt.font({ family: "Segoe UI", pixelSize: 16, weight: Font.Medium })
+    property color cardColor: "#FFFFFF"
+    property color cardBorderColor: "#E0E0E0"
+    property font headerFont: Qt.font({ family: "Noto Serif Tibetan", pixelSize: 32, weight: Font.Bold })
+    property font subHeaderFont: Qt.font({ family: "Bitter", pixelSize: 24, weight: Font.DemiBold })
+    property font bodyFont: Qt.font({ family: "Noto Serif Tibetan", pixelSize: 16 })
+    property font buttonFont: Qt.font({ family: "Bitter", pixelSize: 16, weight: Font.Medium })
 }

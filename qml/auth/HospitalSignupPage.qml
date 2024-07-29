@@ -2,9 +2,15 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
+import "../components"
 
 Page {
-    id: hospitalSignupPage
+  id: hospitalSignupPage
+
+     ErrorDialog {
+        id: errorDialog
+    }
+
     
     background: Rectangle {
         color: theme.backgroundColor
@@ -282,8 +288,7 @@ palette.text : "black"
             }
         }
     }
-
-    function signUp() {
+ function signUp() {
         if (!validateInputs()) {
             return;
         }
@@ -305,49 +310,49 @@ palette.text : "black"
             var hospitalData = dbManager.hospitalManager().getHospitalData(emailField.text)
             stackView.push("../hospital/HospitalDashboardPage.qml", {hospitalEmail: emailField.text, hospitalData: hospitalData})
         } else {
-            showError(qsTr("Sign up failed. Please try again."))
+            showError("Sign Up Failed", "Sign up failed. Please try again.")
         }
     }
 
     function validateInputs() {
         if (nameField.text.trim() === "") {
-            showError(qsTr("Please enter the hospital name."))
+            showError("Invalid Name", "Please enter the hospital name.")
             return false;
         }
         if (emailField.text.trim() === "" || !isValidEmail(emailField.text)) {
-            showError(qsTr("Please enter a valid email address."))
+            showError("Invalid Email", "Please enter a valid email address.")
             return false;
         }
         if (passwordField.text.length < 8) {
-            showError(qsTr("Password must be at least 8 characters long."))
+            showError("Invalid Password", "Password must be at least 8 characters long.")
             return false;
         }
         if (contactNumberField.text.trim() === "") {
-            showError(qsTr("Please enter a contact number."))
+            showError("Invalid Contact", "Please enter a contact number.")
             return false;
         }
         if (addressField.text.trim() === "") {
-            showError(qsTr("Please enter the hospital address."))
+            showError("Invalid Address", "Please enter the hospital address.")
             return false;
         }
         if (cityField.text.trim() === "") {
-            showError(qsTr("Please enter the city."))
+            showError("Invalid City", "Please enter the city.")
             return false;
         }
         if (stateField.text.trim() === "") {
-            showError(qsTr("Please enter the state."))
+            showError("Invalid State", "Please enter the state.")
             return false;
         }
         if (countryField.text.trim() === "") {
-            showError(qsTr("Please enter the country."))
+            showError("Invalid Country", "Please enter the country.")
             return false;
         }
         if (zipField.text.trim() === "") {
-            showError(qsTr("Please enter the ZIP code."))
+            showError("Invalid ZIP", "Please enter the ZIP code.")
             return false;
         }
         if (licenseField.text.trim() === "") {
-            showError(qsTr("Please enter the hospital license number."))
+            showError("Invalid License", "Please enter the hospital license number.")
             return false;
         }
         return true;
@@ -356,5 +361,11 @@ palette.text : "black"
     function isValidEmail(email) {
         var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         return emailRegex.test(email);
-      }
+    }
+
+    function showError(title, message) {
+        errorDialog.errorTitle = title
+        errorDialog.errorMessage = message
+        errorDialog.open()
+    }
 }
