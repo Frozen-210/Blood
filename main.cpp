@@ -19,7 +19,7 @@ int main(int argc, char *argv[]) {
 
   engine.rootContext()->setContextProperty("dbManager", &dbManager);
 
-  const QUrl url(QStringLiteral("../../qml/main.qml"));
+  const QUrl url(QStringLiteral("../../../../../qml/main.qml"));
   QObject::connect(
       &engine, &QQmlApplicationEngine::objectCreated, &app,
       [url](QObject *obj, const QUrl &objUrl) {
