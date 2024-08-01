@@ -41,8 +41,6 @@ ComboBox {
     }
 
     contentItem: Text {
-        leftPadding: 10
-        rightPadding: control.indicator.width + control.spacing
 
         text: control.displayText
         font: control.font

@@ -1,10 +1,18 @@
-// HospitalLoginPage.qml
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
+import "../components"
 
 Page {
-    id: hospitalLoginPage
+  id: hospitalLoginPage
+
+    ErrorDialog {
+        id: errorDialog
+      }
+
+      ThemeColors{
+        id:theme
+      }
     
     background: Rectangle {
         color: theme.backgroundColor
@@ -148,7 +156,8 @@ Page {
         }
     }
 
-    function login() {
+
+function login() {
         if (!validateInputs()) {
             return;
         }
@@ -159,17 +168,17 @@ Page {
             var hospitalData = dbManager.hospitalManager().getHospitalData(emailField.text)
             stackView.push("../hospital/HospitalDashboardPage.qml", {hospitalEmail: emailField.text, hospitalData: hospitalData})
         } else {
-            showError(qsTr("Login failed. Please check your credentials."))
+            showError("Login Failed", "Login failed. Please check your credentials.")
         }
     }
 
     function validateInputs() {
         if (emailField.text.trim() === "" || !isValidEmail(emailField.text)) {
-            showError(qsTr("Please enter a valid email address."))
+            showError("Invalid Email", "Please enter a valid email address.")
             return false;
         }
         if (passwordField.text.length < 8) {
-            showError(qsTr("Password must be at least 8 characters long."))
+            showError("Invalid Password", "Password must be at least 8 characters long.")
             return false;
         }
         return true;
@@ -178,5 +187,12 @@ Page {
     function isValidEmail(email) {
         var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         return emailRegex.test(email);
-      }
+    }
+
+    function showError(title, message) {
+        errorDialog.errorTitle = title
+        errorDialog.errorMessage = message
+        errorDialog.open()
+    }
 }
+

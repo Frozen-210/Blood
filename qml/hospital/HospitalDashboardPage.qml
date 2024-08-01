@@ -96,7 +96,7 @@ ThemeColors {
                     spacing: 20
 
                     Image {
-                        source: "qrc:/Image/Image/HospitalLogo.png"
+                      source: "qrc:/Image/Image/Logo.png"
                         Layout.alignment: Qt.AlignHCenter
                         Layout.preferredWidth: 120
                         Layout.preferredHeight: 120

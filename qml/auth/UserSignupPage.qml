@@ -1,4 +1,3 @@
-// UserSignupPage.qml
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
@@ -7,27 +6,37 @@ import "../components"
 Page {
   id: signupPage
 
-ThemeColors {
-    id: theme
-    property color primaryColor: "#E53935"
-    property color accentColor: "#1E88E5"
-    property color backgroundColor: "#FFFFFF"
-    property color textColor: "#212121"
-    property color lightTextColor: "#757575"
-    property font headerFont: Qt.font({ family: "Segoe UI", pixelSize: 32, weight: Font.Bold })
-    property font subHeaderFont: Qt.font({ family: "Segoe UI", pixelSize: 24, weight: Font.DemiBold })
-    property font bodyFont: Qt.font({ family: "Segoe UI", pixelSize: 16 })
-    property font buttonFont: Qt.font({ family: "Segoe UI", pixelSize: 16, weight: Font.Medium })
+
+ErrorDialog{
+  id:errorDialog
 }
+
+    // Theme definition
+    // This could be moved to a separate file and imported for consistency across the app
+    ThemeColors {
+        id: theme
+        property color primaryColor: "#E53935"
+        property color accentColor: "#1E88E5"
+        property color backgroundColor: "#FFFFFF"
+        property color textColor: "#212121"
+        property color lightTextColor: "#757575"
+        property font headerFont: Qt.font({ family: "Segoe UI", pixelSize: 32, weight: Font.Bold })
+        property font subHeaderFont: Qt.font({ family: "Segoe UI", pixelSize: 24, weight: Font.DemiBold })
+        property font bodyFont: Qt.font({ family: "Segoe UI", pixelSize: 16 })
+        property font buttonFont: Qt.font({ family: "Segoe UI", pixelSize: 16, weight: Font.Medium })
+    }
     
+    // Set the background color of the page
     background: Rectangle {
         color: theme.backgroundColor
     }
 
+    // Main layout of the signup page
     RowLayout {
         anchors.fill: parent
         spacing: 0
 
+        // Left side of the signup page (logo and app name)
         Rectangle {
             Layout.fillHeight: true
             Layout.preferredWidth: parent.width * 0.4
@@ -65,6 +74,7 @@ ThemeColors {
             }
         }
 
+        // Right side of the signup page (signup form)
         Rectangle {
             Layout.fillHeight: true
             Layout.fillWidth: true
@@ -86,13 +96,14 @@ ThemeColors {
                         Layout.alignment: Qt.AlignHCenter
                     }
 
+                    // Full Name input field
                     TextField {
                         id: nameField
                         placeholderText: qsTr("Full Name")
                         Layout.fillWidth: true
                         leftPadding: 20
-                        palette.text : "black"
-                        palette.placeholderText : "#d6d2cb"
+                        palette.text: "black"
+                        palette.placeholderText: "#d6d2cb"
 
                         background: Rectangle {
                             color: "#F8F8F8"
@@ -100,16 +111,16 @@ ThemeColors {
                             border.color: nameField.activeFocus ? theme.accentColor : "#DDDDDD"
                             border.width: nameField.activeFocus ? 2 : 1
                         }
-
                     }
 
+                    // Email input field
                     TextField {
                         id: emailField
                         placeholderText: qsTr("Email")
                         Layout.fillWidth: true
                         leftPadding: 20
-                        palette.text : "black"
-                        palette.placeholderText : "#d6d2cb"
+                        palette.text: "black"
+                        palette.placeholderText: "#d6d2cb"
 
                         background: Rectangle {
                             color: "#F8F8F8"
@@ -117,19 +128,17 @@ ThemeColors {
                             border.color: emailField.activeFocus ? theme.accentColor : "#DDDDDD"
                             border.width: emailField.activeFocus ? 2 : 1
                         }
-
-
                     }
 
+                    // Password input field
                     TextField {
                         id: passwordField
                         placeholderText: qsTr("Password")
                         echoMode: TextInput.Password
                         Layout.fillWidth: true
                         leftPadding: 20
-                        palette.text : "black"
-                        palette.placeholderText : "#d6d2cb"
-                        
+                        palette.text: "black"
+                        palette.placeholderText: "#d6d2cb"
 
                         background: Rectangle {
                             color: "#F8F8F8"
@@ -137,33 +146,34 @@ ThemeColors {
                             border.color: passwordField.activeFocus ? theme.accentColor : "#DDDDDD"
                             border.width: passwordField.activeFocus ? 2 : 1
                         }
-
                     }
 
+                    // Blood Group selection
                     ComboBox {
                         id: bloodGroupCombo
-                        model: ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]
+                        model: ["Select Blood Group", "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]
                         Layout.fillWidth: true
                         leftPadding: 10
 
+                        // Commented out custom background style
+                        /*
                         background: Rectangle {
                             color: "#F8F8F8"
                             radius: 100
                             border.color: bloodGroupCombo.activeFocus ? theme.accentColor : "#DDDDDD"
-                            border.width: bloodGroupCombo.activeFocus ? 2 : 1
+                            border.width: bloodGroupCombo.activeFocus ? 4 : 1
                         }
-
-
+                        */
                     }
 
+                    // Health Information input field (optional)
                     TextField {
                         id: healthInfoField
                         placeholderText: qsTr("Health Information (Optional)")
                         Layout.fillWidth: true
                         leftPadding: 20
-
-                        palette.text : "black"
-                        palette.placeholderText : "#d6d2cb"
+                        palette.text: "black"
+                        palette.placeholderText: "#d6d2cb"
 
                         background: Rectangle {
                             color: "#F8F8F8"
@@ -171,9 +181,9 @@ ThemeColors {
                             border.color: healthInfoField.activeFocus ? theme.accentColor : "#DDDDDD"
                             border.width: healthInfoField.activeFocus ? 2 : 1
                         }
-
                     }
 
+                    // Sign Up button
                     Button {
                         text: qsTr("Sign Up")
                         Layout.fillWidth: true
@@ -193,6 +203,7 @@ ThemeColors {
                         }
                     }
 
+                    // Login link
                     Label {
                         text: qsTr("Already have an account? Log in")
                         color: theme.accentColor
@@ -205,6 +216,7 @@ ThemeColors {
                         }
                     }
 
+                    // Back to Main Menu link
                     Text {
                         text: qsTr("Back to Main Menu")
                         color: theme.accentColor
@@ -224,10 +236,11 @@ ThemeColors {
         }
     }
 
+    // Function to handle sign up process
     function signUp() {
         if (!validateInputs()) {
-           return;
-       }
+            return;
+        }
 
         var success = dbManager.userManager().insertUser(
             nameField.text,
@@ -239,31 +252,46 @@ ThemeColors {
 
         if (success) {
             var userData = dbManager.userManager().getUserData(emailField.text)
-            stackView.push("../user/UserDashboardPage.qml", 
+            stackView.push("../user/UserDashboard.qml", 
                            {userEmail: emailField.text, userData: userData})
         } else {
             showError(qsTr("Sign up failed. Please try again."))
         }
     }
 
-  function validateInputs() {
+    // Function to validate user inputs
+    function validateInputs() {
         if (nameField.text.trim() === "") {
-            showError(qsTr("Please enter your full name."))
+            showError(qsTr("Invalid Name"), qsTr("Please enter your full name."))
             return false;
         }
         if (emailField.text.trim() === "" || !isValidEmail(emailField.text)) {
-            showError(qsTr("Please enter a valid email address."))
+            showError(qsTr("Invalid Email"),qsTr("Please enter a valid email address."))
             return false;
         }
         if (passwordField.text.length < 6) {
-            showError(qsTr("Password must be at least 6 characters long."))
+            showError(qsTr("Too Short"),qsTr("Password must be at least 6 characters long."))
+            return false;
+        }
+        if (bloodGroupCombo.currentIndex === 0) {
+            showError(qsTr("Blood Group"),qsTr("Please select your blood group."))
             return false;
         }
         return true;
     }
 
+    // Function to validate email format
     function isValidEmail(email) {
         var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         return emailRegex.test(email);
-      }
+    }
+
+    // Function to show error dialog
+    // Note: This function is not defined in the provided code. You should add an ErrorDialog component
+    // similar to the one in the LoginPage.qml file we created earlier.
+    function showError(title ,message) {
+        errorDialog.errorTitle = title
+         errorDialog.errorMessage = message
+         errorDialog.open()
+    }
 }
