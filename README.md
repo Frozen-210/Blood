@@ -28,7 +28,7 @@ BloodBound is a comprehensive blood donation management system designed to conne
 ### Installation
 
 1. Clone the repository:
-2. 2. Open the project in Qt Creator
+2. Open the project in Qt Creator
 3. Build and run the project
 
 ## Usage
