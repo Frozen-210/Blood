@@ -1,22 +1,53 @@
-## BloodBound
-Recent developments in healthcare have emphasised the need for efficient blood
-donation systems due to the logistical challenges faced by traditional methods.
-The BloodBound project aims to create a system where blood donors can book
-appointments at nearby medical centres and individuals in need of blood can
-request donations within their vicinity. This project addresses the critical issue of
-matching blood donors with recipients efficiently, reducing delays that could
-potentially cost lives. Utilising C++ with the Qt framework for the front-end and
-SQL for the database, Blood-Bound ensures a seamless and reliable user
-experience. The expected outcome is a user-friendly application that enhances the
-coordination between blood donors and medical centres, improving the efficiency
-and reliability of the blood donation process. Ultimately, Blood-Bound seeks to
-make blood donation more accessible and organised, thereby saving lives. It is
-recommended that the system be implemented across various medical centres to
-maximise its impact.
+# BloodBound
 
-# Team:
-Sarbesh KC
-Nischal Subedi
-Aarya Pathak
-Suniti Shrestha
-Avipsa Parajuli
+BloodBound is a comprehensive blood donation management system designed to connect blood donors with medical centers efficiently. This project aims to streamline the blood donation process, making it more accessible and organized.
+
+## Features
+
+- User authentication for donors and medical centers
+- Appointment booking system for blood donations
+- Management of donor information and donation history
+- Dashboard for hospitals to manage appointments and requests
+- User-friendly interface built with QML and Qt framework
+- Secure data management using SQLite database
+
+## Technologies Used
+
+- C++ (Core logic)
+- Qt framework with QML (User Interface)
+- SQLite (Database)
+
+## Getting Started
+
+### Prerequisites
+
+- Qt 6.7 or later
+- C++ compiler
+- SQLite 3
+
+### Installation
+
+1. Clone the repository:
+2. 2. Open the project in Qt Creator
+3. Build and run the project
+
+## Usage
+
+- Donors can sign up, log in, and book appointments for blood donation
+- Medical centers can manage appointments, view donor information, and respond to blood requests
+
+## Contributors
+
+- Sarbesh KC
+- Avipsa Parajuli
+- Aarya Pathak
+- Suniti Shrestha
+- Nischal Subedi
+
+## Acknowledgements
+
+Special thanks to Mr. Saugat Singh (Project Supervisor) and Mr. Nabin Ghimire (Program Coordinator) for their guidance and support throughout the project.
+
+## License
+
+This project is licensed under the [MIT License](LICENSE.md).
